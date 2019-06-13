@@ -47,8 +47,8 @@ def remove_gaps(wave, flux):
 def auto_prune(wave, flux, lines, prune_leeway = 500, normalize = True, **kwargs):
     '''restrict to range of lines to be measured, with some leeway'''
 
-    wav_min = min(min(x for x in l if isinstance(x, (int, float))) for l in lines) - prune_leeway
-    wav_max = max(max(x for x in l if isinstance(x, (int, float))) for l in lines) + prune_leeway
+    wav_min = lines.min().min() - prune_leeway
+    wav_max = lines.max().max() + prune_leeway
     i0, i1 = np.searchsorted(wave, [wav_min, wav_max])
     flux = flux[i0:i1]
     if normalize:

@@ -101,7 +101,7 @@ class SpExtractor:
                              self.mod_mean[:, 0] + conf[:, 0],
                              alpha = 0.3, color = 'red')
 
-    def get_feature_min(self, lambda_0, x_values, y_values, element):
+    def get_feature_min(self, lambda_0, x_values, y_values, feature):
         '''compute location and flux of feature minimum'''
 
         # find deepest absorption
@@ -133,7 +133,7 @@ class SpExtractor:
 
         return lambda_m, lambda_m_err, flux_m, flux_m_err
 
-    def measure_feature(self, line_data):
+    def measure_feature(self, feature):
         '''measure feature'''
 
         # run optimization if it has not already been done
@@ -141,7 +141,7 @@ class SpExtractor:
             self.fit_model()
 
         # unpack feature information
-        element, rest_wavelength, low_1, high_1, low_2, high_2 = line_data
+        rest_wavelength, low_1, high_1, low_2, high_2 = self.lines.loc[feature]
 
         # identify indices of feature edge bounds
         cp_1 = np.searchsorted(self.x[:, 0], (low_1, high_1))
@@ -151,7 +151,7 @@ class SpExtractor:
 
         # check if feature outside range of spectrum
         if (index_low == index_hi) or (index_low_2 == index_hi_2):
-            return np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+            return pd.Series([np.nan] * 6, index = ['pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
 
         # identify indices of feature edges from where model peaks
         max_point = index_low + np.argmax(self.mod_mean[index_low: index_hi])
@@ -163,7 +163,7 @@ class SpExtractor:
 
         # get feature minimum
         lambda_m, lambda_m_err, flux_m, flux_m_err = self.get_feature_min(rest_wavelength, self.x[max_point:max_point_2, 0],
-                                                                          self.y[max_point:max_point_2, 0], element)
+                                                                          self.y[max_point:max_point_2, 0], feature)
 
         # in future, may want to separate the above into a parametrize_feature function and then do calcs afterward
         # also store many of the results in class attributes
@@ -173,7 +173,7 @@ class SpExtractor:
 
         # if velocity is not detected, don't do pEW
         if np.isnan(velocity):
-            return np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+           return pd.Series([np.nan] * 6, index = ['pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
 
         # get pseudo continuum
         if self.plot:
@@ -188,22 +188,13 @@ class SpExtractor:
         # compute absorption depth
         a, a_err = absorption_depth(lambda_m, flux_m, flux_m_err, cont)
 
-        return element, pd.Series([pew_results, pew_err_results, velocity, velocity_err, a, a_err],
-                         index = ['peW', 'epEW', 'v', 'ev', 'a', 'ea'])
+        return pd.Series([pew_results, pew_err_results, velocity, velocity_err, a, a_err],
+                         index = ['pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
 
     def process_spectrum(self):
-        '''do full processing of spectrum, including'''
+        '''do full processing of spectrum by measuring each feature'''
 
-        # handle each spectral feature one at a time
-
-        results = []
-        elements = []
-        for line_data in self.lines:
-            el, r = self.measure_feature(line_data)
-            elements.append(el)
-            results.append(r)
-        return pd.DataFrame(results, index = elements)
+        return self.lines.apply(lambda feature: self.measure_feature(feature.name), axis = 1, result_type = 'expand')
 
 
 ### make plotting its own method
-### fully implement dataframe approach
