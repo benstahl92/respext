@@ -1,22 +1,20 @@
-# -*- coding: utf-8 -*-
-import setuptools
-from setuptools import setup
+# imports -- standard
+from setuptools import setup, find_packages
 
-setup(name='spextractor', version='0.4',
-      description='Automatic extractor of spectral features through Gaussian Processes',
-      url='https://github.com/sepap/spextractor',
-      author='Seméli Papadogiannakis',
-      author_email='semeli@fysikum.su.se',
+setup(name='respext',
+      version='0.1.dev0',
+      description='Automatic spectral feature extraction for supernovae through Gaussian Processes',
+      url='https://github.com/benstahl92/respext',
+      author='Benjamin Stahl',
+      author_email='benjamin_stahl@berkeley.edu',
       license='GPL-v3',
       packages=setuptools.find_packages(),
       include_package_data=True,
-      install_requires=['numpy', 'scipy', 'GPy', 'scikit-learn'],
+      install_requires=['numpy', 'scipy', 'GPy'],
       optional=['matplotlib'],
       classifiers=['Programming Language :: Python',
-                   'Programming Language :: Python :: 2',
                    'Programming Language :: Python :: 3',
                    'Topic :: Scientific/Engineering :: Astronomy',
                    'Topic :: Scientific/Engineering :: Physics',
-                   'Intended Audience :: Science/Research',
-                   'Development Status :: 3 - Alpha']
+                   'Intended Audience :: Science/Research']
       )

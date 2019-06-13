@@ -1,13 +1,12 @@
-SPEXTRACTOR
+# respext --- redux of spextractor (<https://github.com/astrobarn/spextractor>)
 
-This code takes a spectrum, smoothes it using Gaussian processes and returns pseudo equivalent widths 
-and velocities for 7 features of a Ia spectrum. If one is interested in other features it is easy to change those in the code. See example for use of the code. 
+An automated pseudo equivalent width (pEW), velocity, and absorption "depth" extractor optimized for SN Ia spectra, though minimal support is available for SNe Ib and Ic (and could be further developed).
 
-Installation:
+## Installation
 
 ```
-git clone https://github.com/astrobarn/spextractor.git
-cd spextractor
+git clone https://github.com/benstahl92/respext.git
+cd respext
 pip install .
 ```
 
