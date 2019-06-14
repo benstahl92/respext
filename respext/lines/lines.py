@@ -53,23 +53,18 @@ def get_speed(lambda_m, lambda_m_err, lambda_rest, c = 299.792458):
     velocity_err = c * 4 * l_quot * lambda_m_err / (lambda_rest * (l_quot ** 2 + 1)**2)
     return velocity, velocity_err
 
-def pseudo_continuum(cont_coords, ax = None):
+def pseudo_continuum(cont_coords):
 	'''
 	get pseudo continuum as a function of wavelength from feature edges
 	
 	Parameters
 	----------
 	cont_coords : endpoints of continuum, given as np.array([x1,x2], [y1,y2]
-	ax : matplotlib subplot to plot on
 
 	Returns
 	-------
 	interpolate.inter1d object of the continuum
 	'''
-
-	# plot continuum
-	if ax is not None:
-		ax.scatter(cont_coords[0], cont_coords[1], color='k', s=80)
 
 	return interpolate.interp1d(cont_coords[0], cont_coords[1], bounds_error = False, fill_value = 1)
 

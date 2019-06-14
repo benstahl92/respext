@@ -24,13 +24,12 @@ class SpExtractor:
     '''container for a SN spectrum, with methods for all processing'''
 
     def __init__(self, spec_file, z, sn_type = 'Ia', remove_gaps = True, auto_prune = True,
-                 sigma_outliers = None, downsampling = None, plot = False, **kwargs):
+                 sigma_outliers = None, downsampling = None, **kwargs):
 
         # store arguments from instantiation
         self.spec_file = spec_file
         self.z = z
         self.sn_type = sn_type
-        self.plot = plot
 
         # select appropriate set of spectral lines
         if self.sn_type not in ['Ia', 'Ib', 'Ic']:
@@ -38,15 +37,16 @@ class SpExtractor:
             self.sn_type = 'Ia'
         self.lines = LINES[self.sn_type]
 
+        # instantiate DataFrame for continuum information
+        # columns - 1/2: left/right continuum points, a: absorption minimum point, cont: continuum interpolator
+        self.continuum = pd.DataFrame(columns = ['wav1', 'flux1', 'wava', 'fluxa', 'wav2', 'flux2', 'cont'],
+                                      index = self.lines.index)
+
         # load and prepare spectrum
         self.prepare_spectrum(remove_gaps, auto_prune, sigma_outliers, downsampling, **kwargs)
 
         # setup model
         self.setup_model()
-
-        # setup plot
-        if self.plot:
-            self.setup_plot(**kwargs)
 
     def prepare_spectrum(self, remove_gaps, auto_prune, sigma_outliers, downsampling, **kwargs):
         '''
@@ -66,18 +66,6 @@ class SpExtractor:
             wave, flux = utils.downsample(wave, flux, downsampling)
         self.wave, self.flux = wave, flux
 
-    def setup_plot(self, plot_title = None):
-        '''setup plot'''
-
-        fig, ax = plt.subplots(1, 1)
-        if plot_title is None:
-            plot_title = self.spec_file
-        ax.set_title(plot_title)
-        ax.set_xlabel('Rest Wavelength (\u212B)', size=14)
-        ax.set_ylabel('Normalized Flux', size=14)
-        ax.plot(self.wave, self.flux, color='k', alpha=0.5, label = 'Processed Input Spectrum')
-        self.plotter = (fig, ax)
-
     def setup_model(self):
         '''set up model'''
 
@@ -92,14 +80,7 @@ class SpExtractor:
 
         self.model.optimize()
         self.mod_mean, self.mod_var = self.model.predict(self.x)
-        conf = np.sqrt(self.mod_var)
-
-        if self.plot:
-            fig, ax = self.plotter
-            ax.plot(self.x, self.mod_mean, color = 'red')
-            ax.fill_between(self.x[:, 0], self.mod_mean[:, 0] - conf[:, 0],
-                             self.mod_mean[:, 0] + conf[:, 0],
-                             alpha = 0.3, color = 'red')
+        self.conf = np.sqrt(self.mod_var)
 
     def get_feature_min(self, lambda_0, x_values, y_values, feature):
         '''compute location and flux of feature minimum'''
@@ -123,13 +104,6 @@ class SpExtractor:
         # do error estimation as standard deviation of suitable realizations
         lambda_m_samples, flux_m_samples = x_values[samples], y_values[samples]
         lambda_m_err, flux_m_err = lambda_m_samples.std(), flux_m_samples.std()
-
-        # add to plot
-        if self.plot:
-            fig, ax = self.plotter
-            ax.axvline(lambda_m, color = 'k', linestyle = '--')
-            # add text label for each line
-            # perhaps also add a marker for identified feature minimum
 
         return lambda_m, lambda_m_err, flux_m, flux_m_err
 
@@ -158,15 +132,15 @@ class SpExtractor:
         max_point_2 = index_low_2 + np.argmax(self.mod_mean[index_low_2: index_hi_2])
 
         # get wavelength, model flux at the feature edges
-        cp1_x, cp1_y = self.x[max_point, 0], self.mod_mean[max_point, 0]
-        cp2_x, cp2_y = self.x[max_point_2, 0], self.mod_mean[max_point_2, 0]
+        self.continuum.loc[feature, ['wav1', 'flux1']] = self.x[max_point, 0], self.mod_mean[max_point, 0]
+        self.continuum.loc[feature, ['wav2', 'flux2']] = self.x[max_point_2, 0], self.mod_mean[max_point_2, 0]
 
         # get feature minimum
         lambda_m, lambda_m_err, flux_m, flux_m_err = self.get_feature_min(rest_wavelength, self.x[max_point:max_point_2, 0],
                                                                           self.y[max_point:max_point_2, 0], feature)
 
+        self.continuum.loc[feature, ['wava', 'fluxa']] = lambda_m, flux_m
         # in future, may want to separate the above into a parametrize_feature function and then do calcs afterward
-        # also store many of the results in class attributes
 
         # compute and store velocity
         velocity, velocity_err = get_speed(lambda_m, lambda_m_err, rest_wavelength)
@@ -175,18 +149,16 @@ class SpExtractor:
         if np.isnan(velocity):
            return pd.Series([np.nan] * 6, index = ['pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
 
-        # get pseudo continuum
-        if self.plot:
-            ax_arg = self.plotter[1]
-        else:
-            ax_arg = None
-        cont = pseudo_continuum(np.array([[cp1_x, cp2_x], [cp1_y, cp2_y]]), ax = ax_arg)
+        self.continuum.loc[feature, 'cont'] = pseudo_continuum(np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
+                                                                         self.continuum.loc[feature, ['flux1', 'flux2']]]))
 
         # compute pEWs
-        pew_results, pew_err_results = pEW(self.wave, self.flux, cont, np.array([[cp1_x, cp2_x], [cp1_y, cp2_y]]))
+        pew_results, pew_err_results = pEW(self.wave, self.flux, self.continuum.loc[feature, 'cont'],
+                                           np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
+                                                     self.continuum.loc[feature, ['flux1', 'flux2']]]))
 
         # compute absorption depth
-        a, a_err = absorption_depth(lambda_m, flux_m, flux_m_err, cont)
+        a, a_err = absorption_depth(lambda_m, flux_m, flux_m_err, self.continuum.loc[feature, 'cont'])
 
         return pd.Series([pew_results, pew_err_results, velocity, velocity_err, a, a_err],
                          index = ['pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
@@ -196,5 +168,26 @@ class SpExtractor:
 
         return self.lines.apply(lambda feature: self.measure_feature(feature.name), axis = 1, result_type = 'expand')
 
+    def plot(self, initial_spec = True, model = True, continuum = True, lines = True, show_line_labels = True,
+             save = False, display = True, **kwargs):
+        '''make plot'''
 
-### make plotting its own method
+        self.plotter = utils.setup_plot(**kwargs)
+        if initial_spec:
+            utils.plot_spec(self.plotter[1], self.wave, self.flux, spec_color = 'black', spec_alpha = 0.5)
+        if model:
+            utils.plot_filled_spec(self.plotter[1], self.x[:, 0], self.mod_mean[:, 0],
+                                   self.conf[:, 0], fill_color = 'red', fill_alpha = 0.3)
+        if continuum:
+            utils.plot_continuum(self.plotter[1], self.continuum.loc[:, ['wav1', 'wav2', 'flux1', 'flux2']],
+                                 cp_color = 'black', cl_color = 'blue', cl_alpha = 0.4)
+        if model:
+            utils.plot_spec(self.plotter[1], self.x, self.mod_mean, spec_color = 'red')
+        if lines:
+            utils.plot_lines(self.plotter[1], self.continuum.loc[:, ['wava', 'fluxa', 'cont']],
+                             show_line_labels = show_line_labels)
+        plt.tight_layout()
+        if save is not False:
+            self.plotter[0].savefig(save)
+        elif display:
+            self.plotter[0].show()
