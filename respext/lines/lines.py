@@ -4,16 +4,6 @@ import pandas as pd
 import numpy as np
 from scipy import interpolate, signal
 
-# Element, rest wavelength, low_1, high_1, low_2, high_2
-LINES_Ia = [('Ca II H&K', 3945.12, 3450, 3800, 3800, 3950),
-            ('Si 4000A', 4129.73, 3840, 3950, 4000, 4200),
-            ('Mg II 4300A', 4481.2, 4000, 4250, 4300, 4700),
-            ('Fe II 4800A', 5083.42, 4300, 4700, 4950, 5600),
-            ('S W', 5536.24, 5050, 5300, 5500, 5750),
-            ('Si II 5800A', 6007.7, 5400, 5700, 5800, 6000),
-            ('Si II 6150A', 6355.1, 5800, 6100, 6200, 6600)
-            ]
-
 LINES_Ia = pd.DataFrame(index = ['Ca II H&K', 'Si 4000A', 'Mg II 4300A', 'Fe II 4800A',
                                  'S W', 'Si II 5800A', 'Si II 6150A'],
                         columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
@@ -25,11 +15,15 @@ LINES_Ia = pd.DataFrame(index = ['Ca II H&K', 'Si 4000A', 'Mg II 4300A', 'Fe II 
                                 (6007.7, 5400, 5700, 5800, 6000),
                                 (6355.1, 5800, 6100, 6200, 6600)])
 
-LINES_Ib = [('Fe II', 5169, 4950, 5050, 5150, 5250),
-            ('He I', 5875, 5350, 5450, 5850, 6000)]
+LINES_Ib = pd.DataFrame(index = ['Fe II', 'He I'],
+                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
+                        data = [(5169, 4950, 5050, 5150, 5250),
+                                (5875, 5350, 5450, 5850, 6000)])
 
-LINES_Ic = [('Fe II', 5169, 4950, 5050, 5150, 5250),
-            ('O I', 7773, 7250, 7350, 7750, 7950)]
+LINES_Ic = pd.DataFrame(index = ['Fe II', 'O I'],
+                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
+                        data = [(5169, 4950, 5050, 5150, 5250),
+                                (7773, 7250, 7350, 7750, 7950)])
 
 LINES = dict(Ia=LINES_Ia, Ib=LINES_Ib, Ic=LINES_Ic)
 
