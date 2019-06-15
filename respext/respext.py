@@ -166,7 +166,7 @@ class SpExtractor:
     def process_spectrum(self):
         '''do full processing of spectrum by measuring each feature'''
 
-        return self.lines.apply(lambda feature: self.measure_feature(feature.name), axis = 1, result_type = 'expand')
+        self.results = self.lines.apply(lambda feature: self.measure_feature(feature.name), axis = 1, result_type = 'expand')
 
     def plot(self, initial_spec = True, model = True, continuum = True, lines = True, show_line_labels = True,
              save = False, display = True, **kwargs):
@@ -174,13 +174,13 @@ class SpExtractor:
 
         self.plotter = utils.setup_plot(**kwargs)
         if initial_spec:
-            utils.plot_spec(self.plotter[1], self.wave, self.flux, spec_color = 'black', spec_alpha = 0.5)
+            utils.plot_spec(self.plotter[1], self.wave, self.flux, spec_color = 'black', spec_alpha = 0.4)
         if model:
             utils.plot_filled_spec(self.plotter[1], self.x[:, 0], self.mod_mean[:, 0],
-                                   self.conf[:, 0], fill_color = 'red', fill_alpha = 0.3)
+                                   self.conf[:, 0], fill_color = 'red', fill_alpha = 0.2)
         if continuum:
             utils.plot_continuum(self.plotter[1], self.continuum.loc[:, ['wav1', 'wav2', 'flux1', 'flux2']],
-                                 cp_color = 'black', cl_color = 'blue', cl_alpha = 0.4)
+                                 cp_color = 'black', cl_color = 'blue', cl_alpha = 0.5)
         if model:
             utils.plot_spec(self.plotter[1], self.x, self.mod_mean, spec_color = 'red')
         if lines:
@@ -191,3 +191,8 @@ class SpExtractor:
             self.plotter[0].savefig(save)
         elif display:
             self.plotter[0].show()
+
+    def report(self):
+        '''print report'''
+
+        print(self.results.round(2).to_string())

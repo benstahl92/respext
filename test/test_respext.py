@@ -19,7 +19,7 @@ def test_default_Ia():
 def test_Ia_ds4():
 	'''compare against results derived from running original v04 code'''
 	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 4)
-	results = s.process_spectrum()
+	s.process_spectrum()
 	v04_result = pd.DataFrame([
 				  {'Ca II H&K': 70.35277629914613,
 				  'Fe II 4800A': 148.75978861487167,
@@ -51,13 +51,13 @@ def test_Ia_ds4():
 				  'Si II 6150A': 0.6566419372045513}],
 				  index = ['pEW', 'e_pEW', 'vel', 'e_vel']).T
 	# cannot compare ev because generate from random samples
-	assert (results.loc[:, ['pEW', 'e_pEW', 'vel']].sort_index().round(4) == 
+	assert (s.results.loc[:, ['pEW', 'e_pEW', 'vel']].sort_index().round(4) == 
 		    v04_result.loc[:, ['pEW', 'e_pEW', 'vel']].sort_index().round(4)).all().all()
 
 def test_Ia_ds8_sigma_outliers():
 	'''compare against results derived from running original v04 code'''
 	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 8, sigma_outliers = 3)
-	results = s.process_spectrum()
+	s.process_spectrum()
 	v04_result = pd.DataFrame([
 				  {'Ca II H&K': 64.8942130293112,
 				  'Fe II 4800A': 144.24826091678415,
@@ -89,6 +89,6 @@ def test_Ia_ds8_sigma_outliers():
 				  'Si II 6150A': 0.7592544681971937}],
 				  index = ['pEW', 'e_pEW', 'vel', 'e_vel']).T
 	# cannot compare ev because generate from random samples
-	assert (results.loc[:, ['pEW', 'e_pEW', 'vel']].sort_index().round(4) == 
+	assert (s.results.loc[:, ['pEW', 'e_pEW', 'vel']].sort_index().round(4) == 
 		    v04_result.loc[:, ['pEW', 'e_pEW', 'vel']].sort_index().round(4)).all().all()
 
