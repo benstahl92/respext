@@ -137,7 +137,7 @@ class SpExtractor:
 
         # get feature minimum
         lambda_m, lambda_m_err, flux_m, flux_m_err = self.get_feature_min(rest_wavelength, self.x[max_point:max_point_2, 0],
-                                                                          self.y[max_point:max_point_2, 0], feature)
+                                                                          self.mod_mean[max_point:max_point_2, 0], feature)
 
         self.continuum.loc[feature, ['wava', 'fluxa']] = lambda_m, flux_m
         # in future, may want to separate the above into a parametrize_feature function and then do calcs afterward

@@ -17,13 +17,14 @@ LINES_Ia_LEGACY = pd.DataFrame(index = ['Ca II H&K', 'Si 4000A', 'Mg II 4300A', 
                                 (6355.1, 5800, 6100, 6200, 6600)])
 
 # Ia lines from Silverman et al. (2012)
+# modified to include "rest wavelengths" for blended features: Mg II and Fe II
 LINES_Ia = pd.DataFrame(index = ['Ca II H&K', 'Si II 4000', 'Mg II', 'Fe II', 'S II W',
                                  'Si II 5972', 'Si II 6355', 'O I triplet', 'Ca II near-IR triplet'],
                         columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
                         data = [(3945.28, 3400, 3800, 3800, 4100),
                                 (4129.73, 3850, 4000, 4000, 4150),
-                                (np.nan, 4000, 4150, 4350, 4700),
-                                (np.nan, 4350, 4700, 5050, 5550),
+                                (4481.20, 4000, 4150, 4350, 4700),
+                                (5083.42, 4350, 4700, 5050, 5550),
                                 (5624.32, 5100, 5300, 5450, 5700),
                                 (5971.85, 5400, 5700, 5750, 6000),
                                 (6355.21, 5750, 6060, 6200, 6600),
