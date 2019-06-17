@@ -32,7 +32,7 @@ class SpExtractor:
         self.sn_type = sn_type
 
         # select appropriate set of spectral lines
-        if self.sn_type not in ['Ia', 'Ib', 'Ic']:
+        if self.sn_type not in ['Ia', 'Ia_LEGACY', 'Ib', 'Ic']:
             warnings.warn('{} is not a supported type, defaulting to Ia'.format(self.sn_type))
             self.sn_type = 'Ia'
         self.lines = LINES[self.sn_type]
