@@ -4,7 +4,8 @@ import pandas as pd
 import numpy as np
 from scipy import interpolate, signal
 
-LINES_Ia = pd.DataFrame(index = ['Ca II H&K', 'Si 4000A', 'Mg II 4300A', 'Fe II 4800A',
+# Ia lines from original fork from spextractor --- used for consistency tests
+LINES_Ia_LEGACY = pd.DataFrame(index = ['Ca II H&K', 'Si 4000A', 'Mg II 4300A', 'Fe II 4800A',
                                  'S W', 'Si II 5800A', 'Si II 6150A'],
                         columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
                         data = [(3945.12, 3450, 3800, 3800, 3950),
@@ -14,6 +15,20 @@ LINES_Ia = pd.DataFrame(index = ['Ca II H&K', 'Si 4000A', 'Mg II 4300A', 'Fe II 
                                 (5536.24, 5050, 5300, 5500, 5750),
                                 (6007.7, 5400, 5700, 5800, 6000),
                                 (6355.1, 5800, 6100, 6200, 6600)])
+
+# Ia lines from Silverman et al. (2012)
+LINES_Ia = pd.DataFrame(index = ['Ca II H&K', 'Si II 4000', 'Mg II', 'Fe II', 'S II W',
+                                 'Si II 5972', 'Si II 6355', 'O I triplet', 'Ca II near-IR triplet'],
+                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
+                        data = [(3945.28, 3400, 3800, 3800, 4100),
+                                (4129.73, 3850, 4000, 4000, 4150),
+                                (np.nan, 4000, 4150, 4350, 4700),
+                                (np.nan, 4350, 4700, 5050, 5550),
+                                (5624.32, 5100, 5300, 5450, 5700),
+                                (5971.85, 5400, 5700, 5750, 6000),
+                                (6355.21, 5750, 6060, 6200, 6600),
+                                (7773.37, 6800, 7450, 7600, 8000),
+                                (8578.75, 7500, 8100, 8200, 8900)])
 
 LINES_Ib = pd.DataFrame(index = ['Fe II', 'He I'],
                         columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
@@ -25,7 +40,7 @@ LINES_Ic = pd.DataFrame(index = ['Fe II', 'O I'],
                         data = [(5169, 4950, 5050, 5150, 5250),
                                 (7773, 7250, 7350, 7750, 7950)])
 
-LINES = dict(Ia=LINES_Ia, Ib=LINES_Ib, Ic=LINES_Ic)
+LINES = dict(Ia=LINES_Ia, Ia_LEGACY=LINES_Ia_LEGACY, Ib=LINES_Ib, Ic=LINES_Ic)
 
 def get_speed(lambda_m, lambda_m_err, lambda_rest, c = 299.792458):
     '''

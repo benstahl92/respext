@@ -18,7 +18,7 @@ def test_default_Ia():
 
 def test_Ia_ds4():
 	'''compare against results derived from running original v04 code'''
-	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 4)
+	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, sn_type = 'Ia_LEGACY', downsampling = 4)
 	s.process_spectrum()
 	v04_result = pd.DataFrame([
 				  {'Ca II H&K': 70.35277629914613,
@@ -56,7 +56,7 @@ def test_Ia_ds4():
 
 def test_Ia_ds8_sigma_outliers():
 	'''compare against results derived from running original v04 code'''
-	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 8, sigma_outliers = 3)
+	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, sn_type = 'Ia_LEGACY', downsampling = 8, sigma_outliers = 3)
 	s.process_spectrum()
 	v04_result = pd.DataFrame([
 				  {'Ca II H&K': 64.8942130293112,
@@ -92,3 +92,40 @@ def test_Ia_ds8_sigma_outliers():
 	assert (s.results.loc[:, ['pEW', 'e_pEW', 'vel']].sort_index().round(4) == 
 		    v04_result.loc[:, ['pEW', 'e_pEW', 'vel']].sort_index().round(4)).all().all()
 
+def test_Ia_ds8_bad_feature_fail():
+	'''give a bad continuum region to measure and ensure fails as expected'''
+	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 8)
+	s.lines = pd.DataFrame(index = ['Ca II H&K'],
+                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
+                        data = [(3945.12, 3770, 3800, 3800, 3950)])
+	s.process_spectrum()
+	assert (s.results.loc['Ca II H&K'].isnull().all())
+
+def test_Ia_ds8_bad_meas_feat_fail():
+	'''give a bad feature to measure and ensure fails as expected'''
+	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 8)
+	s.lines = pd.DataFrame(index = ['Ca II H&K'],
+                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
+                        data = [(3945.12, 3800, 3800, 3800, 3950)])
+	s.process_spectrum()
+	assert (s.results.loc['Ca II H&K'].isnull().all())
+
+def test_plotter_init():
+	'''make sure plotter gets set up correctly'''
+	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 8)
+	s.process_spectrum()
+	s.plot(save = False, display = False, title = 'Ia test', xlabel = 'x', ylabel = 'y', figsize = (6, 3))
+	assert len(s.plotter) == 2
+	assert s.plotter[1].title.get_text() == 'Ia test'
+	assert s.plotter[1].xaxis.get_label_text() == 'x'
+	assert s.plotter[1].yaxis.get_label_text() == 'y'
+	assert s.plotter[0].get_figwidth() == 6
+	assert s.plotter[0].get_figheight() == 3
+
+def test_report(capfd):
+	'''test reporting'''
+	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 8)
+	s.process_spectrum()
+	s.report()
+	out, err = capfd.readouterr()
+	assert 'Ca II H&K' in out

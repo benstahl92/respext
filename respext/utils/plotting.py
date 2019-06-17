@@ -41,15 +41,22 @@ def plot_lines(ax, absorptions, line_color = 'black', show_line_labels = True):
     '''plot absorption lines'''
 
     for feature in absorptions.index:
-        ax.plot([absorptions.loc[feature, 'wava']] * 2,
-                [absorptions.loc[feature, 'fluxa'], absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])],
-                color = line_color)
-        ax.scatter([absorptions.loc[feature, 'wava']] * 2,
-                   [absorptions.loc[feature, 'fluxa'], absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])],
-                   color = line_color, s = 40)
-        ax.plot([absorptions.loc[feature, 'wava']] * 2,
-                [absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava']), 1.1],
-                color = line_color, ls = '--')
-        if show_line_labels:
-            ax.text(absorptions.loc[feature, 'wava'], 1.1, feature, rotation = 'vertical',
-                    horizontalalignment = 'right', verticalalignment = 'top')
+        if absorptions.loc[feature].notnull().all():
+
+            # absorption line below continuum
+            ax.plot([absorptions.loc[feature, 'wava']] * 2,
+                    [absorptions.loc[feature, 'fluxa'], absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])],
+                    color = line_color)
+
+            # points from which absorption was measured
+            ax.scatter([absorptions.loc[feature, 'wava']] * 2,
+                       [absorptions.loc[feature, 'fluxa'], absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])],
+                       color = line_color, s = 40)
+
+            # absorption line above continuum
+            ax.plot([absorptions.loc[feature, 'wava']] * 2,
+                    [absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava']), 1.1],
+                    color = line_color, ls = '--')
+            if show_line_labels:
+                ax.text(absorptions.loc[feature, 'wava'], 1.1, feature, rotation = 'vertical',
+                        horizontalalignment = 'right', verticalalignment = 'top')
