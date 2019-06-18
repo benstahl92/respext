@@ -10,7 +10,7 @@ def load_spectrum(filename, Si_check = True, normalize = True, **kwargs):
     '''load spectrum from file'''
 
     # load data
-    data = pd.read_csv(filename, delim_whitespace = True, header = None)
+    data = pd.read_csv(filename, delim_whitespace = True, header = None, comment = '#')
     wave = data.loc[:, 0]
     flux = data.loc[:, 1]
     # check for data in proximity of Si II 6355

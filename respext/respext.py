@@ -172,6 +172,11 @@ class SpExtractor:
              save = False, display = True, **kwargs):
         '''make plot'''
 
+        # check if plotting can be done
+        if not hasattr(self, 'mod_mean'):
+            warnings.warn('Cannot plot until spectrum has been processed!')
+            return
+
         self.plotter = utils.setup_plot(**kwargs)
         if initial_spec:
             utils.plot_spec(self.plotter[1], self.wave, self.flux, spec_color = 'black', spec_alpha = 0.4)
