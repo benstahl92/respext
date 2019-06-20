@@ -105,6 +105,6 @@ def pEW(wavelength, flux, cont, cont_coords):
 def absorption_depth(lambda_m, flux_m, flux_m_err, cont):
 	'''compute absorption depth relative to the pseudo continuum'''
 
-	a = cont(lambda_m) - flux_m
+	a = ( cont(lambda_m) - flux_m ) / cont(lambda_m)
 	a_err = flux_m_err
 	return a, a_err
