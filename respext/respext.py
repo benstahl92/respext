@@ -23,13 +23,14 @@ from .lines import LINES, get_speed, pseudo_continuum, pEW, absorption_depth
 class SpExtractor:
     '''container for a SN spectrum, with methods for all processing'''
 
-    def __init__(self, spec_file, z, sn_type = 'Ia', remove_gaps = True, auto_prune = True,
+    def __init__(self, spec_file, z, sn_type = 'Ia', flux_scale = 1e-15, remove_gaps = True, auto_prune = True,
                  sigma_outliers = None, downsampling = None, **kwargs):
 
         # store arguments from instantiation
         self.spec_file = spec_file
         self.z = z
         self.sn_type = sn_type
+        self.flux_scale = flux_scale
 
         # select appropriate set of spectral lines
         if self.sn_type not in ['Ia', 'Ia_LEGACY', 'Ib', 'Ic']:
@@ -54,7 +55,7 @@ class SpExtractor:
         optional intermediate steps: remove gaps, prune, remove outliers, downsample
         '''
 
-        wave, flux = utils.load_spectrum(self.spec_file, **kwargs)
+        wave, flux, self.scale = utils.load_spectrum(self.spec_file, return_scale = True, **kwargs)
         wave = utils.de_redshift(wave, self.z)
         if remove_gaps:
             wave, flux = utils.remove_gaps(wave, flux)
@@ -116,14 +117,17 @@ class SpExtractor:
             self.fit_model()
 
         # unpack feature information
-        rest_wavelength, low_1, high_1, low_2, high_2 = self.lines.loc[feature]
+        #rest_wavelength, low_1, high_1, low_2, high_2 = self.lines.loc[feature]
 
         # testing ---- enforce non-overlapping of continuum points
-        if self.sn_type != 'Ia_LEGACY':
+        if 'LEGACY' not in self.sn_type:
+            rest_wavelength, low_1, high_1, low_2, high_2, blue_deriv, red_deriv = self.lines.loc[feature]
             prev_iloc = self.continuum.index.get_loc(feature) - 1
             prev_blue_edge = self.continuum.loc[:, 'wav2'].iloc[prev_iloc]
             if (prev_iloc >= 0) and (prev_blue_edge > low_1) and (prev_blue_edge < high_1):
                  low_1 = self.continuum.loc[:, 'wav2'].iloc[prev_iloc]
+        else:
+            rest_wavelength, low_1, high_1, low_2, high_2 = self.lines.loc[feature]
 
         # identify indices of feature edge bounds
         cp_1 = np.searchsorted(self.x[:, 0], (low_1, high_1))
@@ -139,17 +143,21 @@ class SpExtractor:
         max_point = index_low + np.argmax(self.mod_mean[index_low: index_hi])
         max_point_2 = index_low_2 + np.argmax(self.mod_mean[index_low_2: index_hi_2])
 
-        ### testing, find maxima by finding where derivate changes from + to -
-        if self.sn_type != 'Ia_LEGACY':
-            pos = self.mod_deriv > 0 # where derivative is positive
+        ### testing, find maxima by finding where derivative pass through specified slope changes from + to -
+        if 'LEGACY' not in self.sn_type:
+            # blue side
+            pos = self.mod_deriv * (self.scale / self.flux.max()) - blue_deriv > 0 # where derivative is positive
             p_ind = (pos[:-1] & ~pos[1:]).nonzero()[0] # indices where last positive occurs before going negative
             max_point_cands = p_ind[(p_ind >= index_low) & (p_ind <= index_hi)]
+            # red side
+            pos = self.mod_deriv * (self.scale / self.flux.max()) - red_deriv > 0 # where derivative is positive
+            p_ind = (pos[:-1] & ~pos[1:]).nonzero()[0] # indices where last positive occurs before going negative
             max_point_2_cands = p_ind[(p_ind >= index_low_2) & (p_ind <= index_hi_2)]
             # if max points match with a derivative result, then use them
-            if (np.abs(max_point_cands - max_point) < 4).any() and (np.abs(max_point_2_cands - max_point_2) < 4).any():
-                pass
+            #if (np.abs(max_point_cands - max_point) < 4).any() and (np.abs(max_point_2_cands - max_point_2) < 4).any():
+            #    pass
             # if at least one candidate for each, use those that have the highest maxima
-            elif (len(max_point_cands) >= 1) and (len(max_point_2_cands) >= 1):
+            if (len(max_point_cands) >= 1) and (len(max_point_2_cands) >= 1):
                 max_point = max_point_cands[np.argmax(self.mod_mean[max_point_cands])]
                 max_point_2 = max_point_2_cands[np.argmax(self.mod_mean[max_point_2_cands])]
             # else, the process has failed

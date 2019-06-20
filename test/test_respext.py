@@ -96,8 +96,8 @@ def test_Ia_ds8_bad_feature_fail():
 	'''give a bad continuum region to measure and ensure fails as expected'''
 	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 8)
 	s.lines = pd.DataFrame(index = ['Ca II H&K'],
-                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
-                        data = [(3945.12, 3770, 3800, 3800, 3950)])
+                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2', 'blue_deriv', 'red_deriv'],
+                        data = [(3945.12, 3770, 3800, 3800, 3950, 0, 0)])
 	s.process_spectrum()
 	assert (s.results.loc['Ca II H&K'].isnull().all())
 
@@ -105,8 +105,8 @@ def test_Ia_ds8_bad_meas_feat_fail():
 	'''give a bad feature to measure and ensure fails as expected'''
 	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 8)
 	s.lines = pd.DataFrame(index = ['Ca II H&K'],
-                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
-                        data = [(3945.12, 3800, 3800, 3800, 3950)])
+                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2', 'blue_deriv', 'red_deriv'],
+                        data = [(3945.12, 3800, 3800, 3800, 3950, 0, 0)])
 	s.process_spectrum()
 	assert (s.results.loc['Ca II H&K'].isnull().all())
 

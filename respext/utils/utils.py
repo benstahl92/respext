@@ -6,21 +6,26 @@ import GPy
 
 __all__ = ['load_spectrum', 'de_redshift', 'normalize_flux', 'remove_gaps', 'auto_prune', 'downsample', 'filter_outliers']
 
-def load_spectrum(filename, Si_check = True, normalize = True, **kwargs):
+def load_spectrum(filename, Si_check = True, normalize = True, return_scale = False, **kwargs):
     '''load spectrum from file'''
 
     # load data
     data = pd.read_csv(filename, delim_whitespace = True, header = None, comment = '#')
     wave = data.loc[:, 0]
     flux = data.loc[:, 1]
+    scale = flux.max()
     # check for data in proximity of Si II 6355
     if Si_check and ((wave.min() > 5800) or (wave.max() < 7000)):
         warnings.warn('No data detected near Si II 6355 feature.')
     # return raw wavelength and flux
     if normalize:
-        return wave.values, normalize_flux(flux.values, **kwargs)
+        flux = normalize_flux(flux.values, **kwargs)
     else:
-        return wave.values, flux.values
+        flux = flux.values
+    if return_scale:
+        return wave.values, flux, scale
+    else:
+        return wave.values, flux
 
 def de_redshift(wave, z):
     '''correct wavelength for redshift'''
