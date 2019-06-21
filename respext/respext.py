@@ -24,7 +24,7 @@ from .lines import LINES, get_speed, pseudo_continuum, pEW, absorption_depth
 class SpExtractor:
     '''container for a SN spectrum, with methods for all processing'''
 
-    def __init__(self, spec_file = None, z = None, save_file = None, sn_type = 'Ia', flux_scale = 1e-15,
+    def __init__(self, spec_file = None, z = None, save_file = None, sn_type = 'Ia', flux_scale = 1,
                  remove_gaps = True, auto_prune = True, sigma_outliers = None, downsampling = None, **kwargs):
 
         # store arguments from instantiation
@@ -172,11 +172,11 @@ class SpExtractor:
         ### testing, find maxima by finding where derivative pass through specified slope changes from + to -
         if 'LEGACY' not in self.sn_type:
             # blue side
-            pos = self.mod_deriv * (self.scale / self.flux.max()) - blue_deriv > 0 # where derivative is positive
+            pos = self.mod_deriv * (self.flux_scale * self.scale / self.flux.max()) - blue_deriv > 0 # where derivative is positive
             p_ind = (pos[:-1] & ~pos[1:]).nonzero()[0] # indices where last positive occurs before going negative
             max_point_cands = p_ind[(p_ind >= index_low) & (p_ind <= index_hi)]
             # red side
-            pos = self.mod_deriv * (self.scale / self.flux.max()) - red_deriv > 0 # where derivative is positive
+            pos = self.mod_deriv * (self.flux_scale * self.scale / self.flux.max()) - red_deriv > 0 # where derivative is positive
             p_ind = (pos[:-1] & ~pos[1:]).nonzero()[0] # indices where last positive occurs before going negative
             max_point_2_cands = p_ind[(p_ind >= index_low_2) & (p_ind <= index_hi_2)]
             # if max points match with a derivative result, then use them
