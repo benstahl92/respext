@@ -13,12 +13,18 @@ Ia_REDSHIFT = 0.0459
 def test_default_Ia():
 	with warnings.catch_warnings(record = True) as w:
 		warnings.simplefilter('always')
-		s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, sn_type = 'UNSUPPORTED TYPE')
+		s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, sn_type = 'UNSUPPORTED TYPE')
 		assert s.sn_type == 'Ia'
+
+def test_no_args():
+	with warnings.catch_warnings(record = True) as w:
+		warnings.simplefilter('always')
+		s = respext.SpExtractor()
+		assert not hasattr(s, 'lines')
 
 def test_Ia_ds4():
 	'''compare against results derived from running original v04 code'''
-	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, sn_type = 'Ia_LEGACY', downsampling = 4)
+	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, sn_type = 'Ia_LEGACY', downsampling = 4)
 	s.process_spectrum()
 	v04_result = pd.DataFrame([
 				 {'Ca II H&K': 70.35277629914837,
@@ -56,7 +62,7 @@ def test_Ia_ds4():
 
 def test_Ia_ds8_sigma_outliers():
 	'''compare against results derived from running original v04 code'''
-	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, sn_type = 'Ia_LEGACY', downsampling = 8, sigma_outliers = 3)
+	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, sn_type = 'Ia_LEGACY', downsampling = 8, sigma_outliers = 3)
 	s.process_spectrum()
 	v04_result = pd.DataFrame([
 				 {'Ca II H&K': 64.89421302931024,
@@ -94,7 +100,7 @@ def test_Ia_ds8_sigma_outliers():
 
 def test_Ia_ds8_bad_feature_fail():
 	'''give a bad continuum region to measure and ensure fails as expected'''
-	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 8)
+	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, downsampling = 8)
 	s.lines = pd.DataFrame(index = ['Ca II H&K'],
                         columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2', 'blue_deriv', 'red_deriv'],
                         data = [(3945.12, 3770, 3800, 3800, 3950, 0, 0)])
@@ -103,7 +109,7 @@ def test_Ia_ds8_bad_feature_fail():
 
 def test_Ia_ds8_bad_meas_feat_fail():
 	'''give a bad feature to measure and ensure fails as expected'''
-	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 8)
+	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, downsampling = 8)
 	s.lines = pd.DataFrame(index = ['Ca II H&K'],
                         columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2', 'blue_deriv', 'red_deriv'],
                         data = [(3945.12, 3800, 3800, 3800, 3950, 0, 0)])
@@ -112,7 +118,7 @@ def test_Ia_ds8_bad_meas_feat_fail():
 
 def test_plotter_init():
 	'''make sure plotter gets set up correctly'''
-	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 8)
+	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, downsampling = 8)
 	s.process_spectrum()
 	s.plot(save = False, display = False, title = 'Ia test', xlabel = 'x', ylabel = 'y', figsize = (6, 3))
 	assert len(s.plotter) == 2
@@ -124,7 +130,7 @@ def test_plotter_init():
 
 def test_report(capfd):
 	'''test reporting'''
-	s = respext.SpExtractor(Ia_SPEC_FILE, Ia_REDSHIFT, downsampling = 8)
+	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, downsampling = 8)
 	s.process_spectrum()
 	s.report()
 	out, err = capfd.readouterr()

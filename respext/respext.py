@@ -15,6 +15,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import GPy
+import pickle as pkl
 
 # imports -- internal
 from . import utils
@@ -23,14 +24,26 @@ from .lines import LINES, get_speed, pseudo_continuum, pEW, absorption_depth
 class SpExtractor:
     '''container for a SN spectrum, with methods for all processing'''
 
-    def __init__(self, spec_file, z, sn_type = 'Ia', flux_scale = 1e-15, remove_gaps = True, auto_prune = True,
-                 sigma_outliers = None, downsampling = None, **kwargs):
+    def __init__(self, spec_file = None, z = None, save_file = None, sn_type = 'Ia', flux_scale = 1e-15,
+                 remove_gaps = True, auto_prune = True, sigma_outliers = None, downsampling = None, **kwargs):
 
         # store arguments from instantiation
         self.spec_file = spec_file
         self.z = z
+        self.save_file = save_file
         self.sn_type = sn_type
         self.flux_scale = flux_scale
+
+        # determine how to instantiate
+        if self.save_file is not None:
+            self.load()
+            return
+        elif (isinstance(self.spec_file, str) and (isinstance(self.z, float) or (isinstance(self.z, int)))):
+            self.save_file = self.spec_file + '.respext.sav'
+            pass
+        else:
+            warnings.warn('Instantiation failed. Must give a valid save file OR spectrum AND redshift')
+            return
 
         # select appropriate set of spectral lines
         if self.sn_type not in ['Ia', 'Ia_LEGACY', 'Ib', 'Ic']:
@@ -48,6 +61,17 @@ class SpExtractor:
 
         # setup model
         self.setup_model()
+
+    def save(self):
+        '''save current state'''
+        with open(self.save_file, 'wb') as f:
+            pkl.dump(self.__dict__, f)
+
+    def load(self):
+        '''load from save file'''
+        with open(self.save_file, 'rb') as f:
+            tmp = pkl.load(f)
+        self.__dict__.update(tmp)
 
     def prepare_spectrum(self, remove_gaps, auto_prune, sigma_outliers, downsampling, **kwargs):
         '''
@@ -88,8 +112,10 @@ class SpExtractor:
         '''compute location and flux of feature minimum'''
 
         # find deepest absorption
+        ## testing disallow if too close to feature edge
         min_pos = y_values.argmin()
-        if (min_pos == 0) or (min_pos == y_values.shape[0]):
+        #if (min_pos == 0) or (min_pos == y_values.shape[0]):
+        if (min_pos < 5) or (min_pos > y_values.shape[0] - 5):
             return np.nan, np.nan, np.nan, np.nan
 
         # measured wavelength and flux of feature
