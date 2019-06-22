@@ -63,15 +63,15 @@ class SpExtractor:
         self.setup_model()
 
     def save(self):
-        '''save current state'''
+        '''save model'''
         with open(self.save_file, 'wb') as f:
-            pkl.dump(self.__dict__, f)
+            pkl.dump([self.model, self.mod_mean, self.mod_var, self.mod_deriv], f)
 
     def load(self):
-        '''load from save file'''
+        '''load model from save file'''
         with open(self.save_file, 'rb') as f:
             tmp = pkl.load(f)
-        self.__dict__.update(tmp)
+        self.model, self.mod_mean, self.mod_var, self.mod_deriv = tmp
 
     def prepare_spectrum(self, remove_gaps, auto_prune, sigma_outliers, downsampling, **kwargs):
         '''
@@ -184,8 +184,8 @@ class SpExtractor:
             #    pass
             # if at least one candidate for each, use those that have the highest maxima
             if (len(max_point_cands) >= 1) and (len(max_point_2_cands) >= 1):
-                max_point = max_point_cands[np.argmax(self.mod_mean[max_point_cands])]
-                max_point_2 = max_point_2_cands[np.argmax(self.mod_mean[max_point_2_cands])]
+                max_point = max_point_cands[np.argmin(self.mod_mean[max_point_cands])]
+                max_point_2 = max_point_2_cands[np.argmin(self.mod_mean[max_point_2_cands])]
             # else, the process has failed
             else:
                 return pd.Series([np.nan] * 6, index = ['pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
