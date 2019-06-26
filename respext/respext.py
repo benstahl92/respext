@@ -24,7 +24,8 @@ from .lines import LINES, get_speed, pseudo_continuum, pEW, absorption_depth
 class SpExtractor:
     '''container for a SN spectrum, with methods for all processing'''
 
-    def __init__(self, spec_file = None, z = None, save_file = None, sn_type = 'Ia', flux_scale = 1,
+    def __init__(self, spec_file, z, save_file = None, sn_type = 'Ia', flux_scale = 1,
+                 max_criterion = 'max', pEW_measure_from = 'data', pEW_err_method = 'default',
                  remove_gaps = True, auto_prune = True, sigma_outliers = None, downsampling = None, **kwargs):
 
         # store arguments from instantiation
@@ -33,17 +34,9 @@ class SpExtractor:
         self.save_file = save_file
         self.sn_type = sn_type
         self.flux_scale = flux_scale
-
-        # determine how to instantiate
-        if self.save_file is not None:
-            self.load()
-            return
-        elif (isinstance(self.spec_file, str) and (isinstance(self.z, float) or (isinstance(self.z, int)))):
-            self.save_file = self.spec_file + '.respext.sav'
-            pass
-        else:
-            warnings.warn('Instantiation failed. Must give a valid save file OR spectrum AND redshift')
-            return
+        self.max_criterion = max_criterion
+        self.pEW_measure_from = pEW_measure_from
+        self.pEW_err_method = pEW_err_method
 
         # select appropriate set of spectral lines
         if self.sn_type not in ['Ia', 'Ia_LEGACY', 'Ib', 'Ic']:
@@ -59,15 +52,19 @@ class SpExtractor:
         # load and prepare spectrum
         self.prepare_spectrum(remove_gaps, auto_prune, sigma_outliers, downsampling, **kwargs)
 
-        # setup model
-        self.setup_model()
+        # get model
+        if self.save_file is not None:
+            self.load_model()
+        else:
+            self.save_file = self.spec_file + '.respext.sav'
+            self.setup_model()
 
-    def save(self):
+    def save_model(self):
         '''save model'''
         with open(self.save_file, 'wb') as f:
             pkl.dump([self.model, self.mod_mean, self.mod_var, self.mod_deriv], f)
 
-    def load(self):
+    def load_model(self):
         '''load model from save file'''
         with open(self.save_file, 'rb') as f:
             tmp = pkl.load(f)
@@ -184,8 +181,12 @@ class SpExtractor:
             #    pass
             # if at least one candidate for each, use those that have the highest maxima
             if (len(max_point_cands) >= 1) and (len(max_point_2_cands) >= 1):
-                max_point = max_point_cands[np.argmin(self.mod_mean[max_point_cands])]
-                max_point_2 = max_point_2_cands[np.argmin(self.mod_mean[max_point_2_cands])]
+                if self.max_criterion == 'min':
+                    max_point = max_point_cands[np.argmin(self.mod_mean[max_point_cands])]
+                    max_point_2 = max_point_2_cands[np.argmin(self.mod_mean[max_point_2_cands])]
+                else:
+                    max_point = max_point_cands[np.argmin(self.mod_mean[max_point_cands])]
+                    max_point_2 = max_point_2_cands[np.argmin(self.mod_mean[max_point_2_cands])]
             # else, the process has failed
             else:
                 return pd.Series([np.nan] * 6, index = ['pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
@@ -212,9 +213,16 @@ class SpExtractor:
                                                                          self.continuum.loc[feature, ['flux1', 'flux2']]]))
 
         # compute pEWs
-        pew_results, pew_err_results = pEW(self.wave, self.flux, self.continuum.loc[feature, 'cont'],
-                                           np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
-                                                     self.continuum.loc[feature, ['flux1', 'flux2']]]))
+        if self.pEW_measure_from == 'model':
+            pew_results, pew_err_results = pEW(self.x[:,0], self.mod_mean[:,0], self.continuum.loc[feature, 'cont'],
+                                               np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
+                                                         self.continuum.loc[feature, ['flux1', 'flux2']]]),
+                                               err_method = self.pEW_err_method)
+        else:
+            pew_results, pew_err_results = pEW(self.wave, self.flux, self.continuum.loc[feature, 'cont'],
+                                               np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
+                                                         self.continuum.loc[feature, ['flux1', 'flux2']]]),
+                                               err_method = self.pEW_err_method)
 
         # compute absorption depth
         a, a_err = absorption_depth(lambda_m, flux_m, flux_m_err, self.continuum.loc[feature, 'cont'])

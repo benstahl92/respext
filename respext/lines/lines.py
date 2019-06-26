@@ -78,7 +78,7 @@ def pseudo_continuum(cont_coords):
 
 	return interpolate.interp1d(cont_coords[0], cont_coords[1], bounds_error = False, fill_value = 1)
 
-def pEW(wavelength, flux, cont, cont_coords):
+def pEW(wavelength, flux, cont, cont_coords, err_method = 'default'):
     '''
     calculates the pEW between two chosen points
     cont should be the return of a call to <pseudo_continuum>
@@ -95,7 +95,10 @@ def pEW(wavelength, flux, cont, cont_coords):
             pEW += dwave * (1 - nflux[i])
 
     # calculate pEW uncertainty
-    flux_err = np.abs(signal.cwt(flux, signal.ricker, [1])).mean()
+    if err_method != 'LEGACY':
+        flux_err = np.sqrt(np.mean(signal.cwt(flux, signal.ricker, [1])**2))
+    else:
+        flux_err = np.abs(signal.cwt(flux, signal.ricker, [1])).mean()
     pEW_stat_err = flux_err
     pEW_cont_err = np.abs(cont_coords[0, 0] - cont_coords[0, 1]) * flux_err
     pEW_err = math.hypot(pEW_stat_err, pEW_cont_err)

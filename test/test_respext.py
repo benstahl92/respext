@@ -16,15 +16,10 @@ def test_default_Ia():
 		s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, sn_type = 'UNSUPPORTED TYPE')
 		assert s.sn_type == 'Ia'
 
-def test_no_args():
-	with warnings.catch_warnings(record = True) as w:
-		warnings.simplefilter('always')
-		s = respext.SpExtractor()
-		assert not hasattr(s, 'lines')
-
 def test_Ia_ds4():
-	'''compare against results derived from running original v04 code'''
-	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, sn_type = 'Ia_LEGACY', downsampling = 4)
+	'''compare against results derived from running original v04 (commit: 7cf27bf) code'''
+	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, sn_type = 'Ia_LEGACY', downsampling = 4,
+							pEW_err_method = 'LEGACY')
 	s.process_spectrum()
 	v04_result = pd.DataFrame([
 				 {'Ca II H&K': 70.35277629914837,
@@ -61,8 +56,9 @@ def test_Ia_ds4():
 		    v04_result.loc[:, ['pEW', 'e_pEW', 'vel']].sort_index().round(4)).all().all()
 
 def test_Ia_ds8_sigma_outliers():
-	'''compare against results derived from running original v04 code'''
-	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, sn_type = 'Ia_LEGACY', downsampling = 8, sigma_outliers = 3)
+	'''compare against results derived from running original v04 (commit: 7cf27bf) code'''
+	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, sn_type = 'Ia_LEGACY', downsampling = 8, sigma_outliers = 3,
+							pEW_err_method = 'LEGACY')
 	s.process_spectrum()
 	v04_result = pd.DataFrame([
 				 {'Ca II H&K': 64.89421302931024,
