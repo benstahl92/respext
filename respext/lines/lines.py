@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 from scipy import interpolate, signal
 
+__all__ = ['LINES', 'get_speed', 'pseudo_continuum', 'pEW', 'absorption_depth']
+
 # Ia lines from original fork from spextractor --- used for consistency tests
 LINES_Ia_LEGACY = pd.DataFrame(index = ['Ca II H&K', 'Si 4000A', 'Mg II 4300A', 'Fe II 4800A',
                                  'S W', 'Si II 5800A', 'Si II 6150A'],
@@ -78,36 +80,44 @@ def pseudo_continuum(cont_coords):
 
 	return interpolate.interp1d(cont_coords[0], cont_coords[1], bounds_error = False, fill_value = 1)
 
-def pEW(wavelength, flux, cont, cont_coords, err_method = 'default'):
+def _pEW(wavelength, nflux, cont_coords):
+    '''internal pEW calculation -- only pEW should be exposed for usual use'''
+    val = 0
+    for i in range(len(wavelength)):
+        if wavelength[i] > cont_coords[0, 0] and wavelength[i] < cont_coords[0, 1]:
+            dwave = 0.5 * (wavelength[i + 1] - wavelength[i - 1])
+            val += dwave * (1 - nflux[i])
+    return val
+
+def pEW(wavelength, flux, cont, cont_coords, err_method = 'default', model = None):
     '''
     calculates the pEW between two chosen points
     cont should be the return of a call to <pseudo_continuum>
     '''
 
-    # normalize flux within pseudo continuum
-    nflux = flux / cont(wavelength)
-
     # calculate pEW
-    pEW = 0
-    for i in range(len(wavelength)):
-        if wavelength[i] > cont_coords[0, 0] and wavelength[i] < cont_coords[0, 1]:
-            dwave = 0.5 * (wavelength[i + 1] - wavelength[i - 1])
-            pEW += dwave * (1 - nflux[i])
+    pEW_val = _pEW(wavelength, flux / cont(wavelength), cont_coords)
 
     # calculate pEW uncertainty
-    if err_method != 'LEGACY':
-        flux_err = np.sqrt(np.mean(signal.cwt(flux, signal.ricker, [1])**2))
+    if (err_method == 'sample') and (model is not None):
+        sim_pEWs = []
+        for sample in model.posterior_samples_f(wavelength[:, np.newaxis], 100).squeeze().T:
+            sim_pEWs.append(_pEW(wavelength, sample / cont(wavelength), cont_coords))
+        pEW_err = np.std(sim_pEWs)
     else:
-        flux_err = np.abs(signal.cwt(flux, signal.ricker, [1])).mean()
-    pEW_stat_err = flux_err
-    pEW_cont_err = np.abs(cont_coords[0, 0] - cont_coords[0, 1]) * flux_err
-    pEW_err = math.hypot(pEW_stat_err, pEW_cont_err)
+        if err_method != 'LEGACY':
+            flux_err = np.sqrt(np.mean(signal.cwt(flux, signal.ricker, [1])**2))
+        else:
+            flux_err = np.abs(signal.cwt(flux, signal.ricker, [1])).mean()
+        pEW_stat_err = flux_err
+        pEW_cont_err = np.abs(cont_coords[0, 0] - cont_coords[0, 1]) * flux_err
+        pEW_err = math.hypot(pEW_stat_err, pEW_cont_err)
     
-    return pEW, pEW_err
+    return pEW_val, pEW_err
 
 def absorption_depth(lambda_m, flux_m, flux_m_err, cont):
 	'''compute absorption depth relative to the pseudo continuum'''
 
 	a = ( cont(lambda_m) - flux_m ) / cont(lambda_m)
-	a_err = flux_m_err
+	a_err = flux_m_err / cont(lambda_m)
 	return a, a_err

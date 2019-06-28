@@ -217,12 +217,12 @@ class SpExtractor:
             pew_results, pew_err_results = pEW(self.x[:,0], self.mod_mean[:,0], self.continuum.loc[feature, 'cont'],
                                                np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
                                                          self.continuum.loc[feature, ['flux1', 'flux2']]]),
-                                               err_method = self.pEW_err_method)
+                                               err_method = self.pEW_err_method, model = self.model)
         else:
             pew_results, pew_err_results = pEW(self.wave, self.flux, self.continuum.loc[feature, 'cont'],
                                                np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
                                                          self.continuum.loc[feature, ['flux1', 'flux2']]]),
-                                               err_method = self.pEW_err_method)
+                                               err_method = self.pEW_err_method, model = self.model)
 
         # compute absorption depth
         a, a_err = absorption_depth(lambda_m, flux_m, flux_m_err, self.continuum.loc[feature, 'cont'])
