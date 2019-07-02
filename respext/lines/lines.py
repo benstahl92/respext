@@ -84,12 +84,12 @@ def _pEW(wavelength, nflux, cont_coords):
     '''internal pEW calculation -- only pEW should be exposed for usual use'''
     val = 0
     for i in range(len(wavelength)):
-        if wavelength[i] > cont_coords[0, 0] and wavelength[i] < cont_coords[0, 1]:
+        if (wavelength[i] > cont_coords[0, 0]) and (wavelength[i] < cont_coords[0, 1]):
             dwave = 0.5 * (wavelength[i + 1] - wavelength[i - 1])
             val += dwave * (1 - nflux[i])
     return val
 
-def pEW(wavelength, flux, cont, cont_coords, err_method = 'default', model = None):
+def pEW(wavelength, flux, cont, cont_coords, err_method = 'default', model = None, flux_err = np.array([np.nan])):
     '''
     calculates the pEW between two chosen points
     cont should be the return of a call to <pseudo_continuum>
@@ -104,6 +104,9 @@ def pEW(wavelength, flux, cont, cont_coords, err_method = 'default', model = Non
         for sample in model.posterior_samples_f(wavelength[:, np.newaxis], 100).squeeze().T:
             sim_pEWs.append(_pEW(wavelength, sample / cont(wavelength), cont_coords))
         pEW_err = np.std(sim_pEWs)
+    elif (err_method == 'data') and (~np.isnan(flux_err).all()):
+        # note change in arg to get uncertainty propagation correct
+        pEW_err = _pEW(wavelength, 1 - flux_err / cont(wavelength), cont_coords)
     else:
         if err_method != 'LEGACY':
             flux_err = np.sqrt(np.mean(signal.cwt(flux, signal.ricker, [1])**2))

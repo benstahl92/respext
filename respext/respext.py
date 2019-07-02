@@ -24,8 +24,8 @@ from .lines import LINES, get_speed, pseudo_continuum, pEW, absorption_depth
 class SpExtractor:
     '''container for a SN spectrum, with methods for all processing'''
 
-    def __init__(self, spec_file, z, save_file = None, sn_type = 'Ia', flux_scale = 1,
-                 max_criterion = 'max', pEW_measure_from = 'data', pEW_err_method = 'default',
+    def __init__(self, spec_file, z, save_file = None, sn_type = 'Ia', flux_scale = 1, lambda_m_err = 'measure',
+                 no_overlap = True, pEW_measure_from = 'data', pEW_err_method = 'default',
                  remove_gaps = True, auto_prune = True, sigma_outliers = None, downsampling = None, **kwargs):
 
         # store arguments from instantiation
@@ -34,7 +34,8 @@ class SpExtractor:
         self.save_file = save_file
         self.sn_type = sn_type
         self.flux_scale = flux_scale
-        self.max_criterion = max_criterion
+        self.lambda_m_err = lambda_m_err
+        self.no_overlap = no_overlap
         self.pEW_measure_from = pEW_measure_from
         self.pEW_err_method = pEW_err_method
 
@@ -76,17 +77,17 @@ class SpExtractor:
         optional intermediate steps: remove gaps, prune, remove outliers, downsample
         '''
 
-        wave, flux, self.scale = utils.load_spectrum(self.spec_file, return_scale = True, **kwargs)
+        wave, flux, flux_err, self.scale = utils.load_spectrum(self.spec_file, return_scale = True, **kwargs)
         wave = utils.de_redshift(wave, self.z)
         if remove_gaps:
-            wave, flux = utils.remove_gaps(wave, flux)
+            wave, flux, flux_err = utils.remove_gaps(wave, flux, flux_err)
         if auto_prune:
-            wave, flux = utils.auto_prune(wave, flux, self.lines, **kwargs)
+            wave, flux, flux_err = utils.auto_prune(wave, flux, flux_err, self.lines, **kwargs)
         if sigma_outliers is not None:
-            wave, flux = utils.filter_outliers(wave, flux, sigma_outliers, **kwargs)
+            wave, flux, flux_err = utils.filter_outliers(wave, flux, flux_err, sigma_outliers, **kwargs)
         if downsampling is not None:
-            wave, flux = utils.downsample(wave, flux, downsampling)
-        self.wave, self.flux = wave, flux
+            wave, flux, flux_err = utils.downsample(wave, flux, flux_err, downsampling)
+        self.wave, self.flux, self.flux_err = wave, flux, flux_err
 
     def setup_model(self):
         '''set up model'''
@@ -109,9 +110,7 @@ class SpExtractor:
         '''compute location and flux of feature minimum'''
 
         # find deepest absorption
-        ## testing disallow if too close to feature edge
         min_pos = y_values.argmin()
-        #if (min_pos == 0) or (min_pos == y_values.shape[0]):
         if (min_pos < 5) or (min_pos > y_values.shape[0] - 5):
             return np.nan, np.nan, np.nan, np.nan
 
@@ -120,8 +119,6 @@ class SpExtractor:
 
         # sample possible spectra from posterior and find the minima
         samples = self.model.posterior_samples_f(x_values[:, np.newaxis], 100).squeeze().argmin(axis = 0)
-
-        # exclude points at either end
         samples = samples[np.logical_and(samples != 0, samples != x_values.shape[0])]
         if samples.size == 0:
             return np.nan, np.nan, np.nan, np.nan
@@ -129,6 +126,9 @@ class SpExtractor:
         # do error estimation as standard deviation of suitable realizations
         lambda_m_samples, flux_m_samples = x_values[samples], y_values[samples]
         lambda_m_err, flux_m_err = lambda_m_samples.std(), flux_m_samples.std()
+
+        if (self.lambda_m_err != 'measure') and ((type(self.lambda_m_err) == type(1)) or (type(self.lambda_m_err) == type(1.1))):
+            lambda_m_err = self.lambda_m_err
 
         return lambda_m, lambda_m_err, flux_m, flux_m_err
 
@@ -145,10 +145,11 @@ class SpExtractor:
         # testing ---- enforce non-overlapping of continuum points
         if 'LEGACY' not in self.sn_type:
             rest_wavelength, low_1, high_1, low_2, high_2, blue_deriv, red_deriv = self.lines.loc[feature]
-            prev_iloc = self.continuum.index.get_loc(feature) - 1
-            prev_blue_edge = self.continuum.loc[:, 'wav2'].iloc[prev_iloc]
-            if (prev_iloc >= 0) and (prev_blue_edge > low_1) and (prev_blue_edge < high_1):
-                 low_1 = self.continuum.loc[:, 'wav2'].iloc[prev_iloc]
+            if self.no_overlap:
+                prev_iloc = self.continuum.index.get_loc(feature) - 1
+                prev_blue_edge = self.continuum.loc[:, 'wav2'].iloc[prev_iloc]
+                if (prev_iloc >= 0) and (prev_blue_edge > low_1) and (prev_blue_edge < high_1):
+                     low_1 = self.continuum.loc[:, 'wav2'].iloc[prev_iloc]
         else:
             rest_wavelength, low_1, high_1, low_2, high_2 = self.lines.loc[feature]
 
@@ -181,12 +182,8 @@ class SpExtractor:
             #    pass
             # if at least one candidate for each, use those that have the highest maxima
             if (len(max_point_cands) >= 1) and (len(max_point_2_cands) >= 1):
-                if self.max_criterion == 'min':
-                    max_point = max_point_cands[np.argmin(self.mod_mean[max_point_cands])]
-                    max_point_2 = max_point_2_cands[np.argmin(self.mod_mean[max_point_2_cands])]
-                else:
-                    max_point = max_point_cands[np.argmax(self.mod_mean[max_point_cands])]
-                    max_point_2 = max_point_2_cands[np.argmax(self.mod_mean[max_point_2_cands])]
+                max_point = max_point_cands[np.argmax(self.mod_mean[max_point_cands])]
+                max_point_2 = max_point_2_cands[np.argmax(self.mod_mean[max_point_2_cands])]
             # else, the process has failed
             else:
                 return pd.Series([np.nan] * 6, index = ['pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
@@ -217,12 +214,14 @@ class SpExtractor:
             pew_results, pew_err_results = pEW(self.x[:,0], self.mod_mean[:,0], self.continuum.loc[feature, 'cont'],
                                                np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
                                                          self.continuum.loc[feature, ['flux1', 'flux2']]]),
-                                               err_method = self.pEW_err_method, model = self.model)
+                                               err_method = self.pEW_err_method, model = self.model,
+                                               flux_err = self.flux_err)
         else:
             pew_results, pew_err_results = pEW(self.wave, self.flux, self.continuum.loc[feature, 'cont'],
                                                np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
                                                          self.continuum.loc[feature, ['flux1', 'flux2']]]),
-                                               err_method = self.pEW_err_method, model = self.model)
+                                               err_method = self.pEW_err_method, model = self.model,
+                                               flux_err = self.flux_err)
 
         # compute absorption depth
         a, a_err = absorption_depth(lambda_m, flux_m, flux_m_err, self.continuum.loc[feature, 'cont'])
