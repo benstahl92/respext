@@ -1,5 +1,6 @@
 # imports -- standard
 import math
+import warnings
 import pandas as pd
 import numpy as np
 from scipy import interpolate, signal
@@ -104,17 +105,24 @@ def pEW(wavelength, flux, cont, cont_coords, err_method = 'default', model = Non
         for sample in model.posterior_samples_f(wavelength[:, np.newaxis], 100).squeeze().T:
             sim_pEWs.append(_pEW(wavelength, sample / cont(wavelength), cont_coords))
         pEW_err = np.std(sim_pEWs)
+        return pEW_val, pEW_err
     elif (err_method == 'data') and (~np.isnan(flux_err).all()):
-        # note change in arg to get uncertainty propagation correct
-        pEW_err = _pEW(wavelength, 1 - flux_err / cont(wavelength), cont_coords)
+        pEW_err_sq = 0
+        for i in range(len(wavelength)):
+            if (wavelength[i] > cont_coords[0, 0]) and (wavelength[i] < cont_coords[0, 1]):
+                dwave = 0.5 * (wavelength[i + 1] - wavelength[i - 1])
+                pEW_err_sq += (dwave**2) * (flux_err[i] / cont(wavelength[i]))**2
+        return pEW_val, np.sqrt(pEW_err_sq)
+    elif (err_method == 'data') and (np.isnan(flux_err).any()):
+        warnings.warn('NaN in flux err, computing pEW error using default method instead of from data')
+
+    if err_method != 'LEGACY':
+        flux_err = np.sqrt(np.mean(signal.cwt(flux, signal.ricker, [1])**2))
     else:
-        if err_method != 'LEGACY':
-            flux_err = np.sqrt(np.mean(signal.cwt(flux, signal.ricker, [1])**2))
-        else:
-            flux_err = np.abs(signal.cwt(flux, signal.ricker, [1])).mean()
-        pEW_stat_err = flux_err
-        pEW_cont_err = np.abs(cont_coords[0, 0] - cont_coords[0, 1]) * flux_err
-        pEW_err = math.hypot(pEW_stat_err, pEW_cont_err)
+        flux_err = np.abs(signal.cwt(flux, signal.ricker, [1])).mean()
+    pEW_stat_err = flux_err
+    pEW_cont_err = np.abs(cont_coords[0, 0] - cont_coords[0, 1]) * flux_err
+    pEW_err = math.hypot(pEW_stat_err, pEW_cont_err)
     
     return pEW_val, pEW_err
 
