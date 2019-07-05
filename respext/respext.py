@@ -43,7 +43,7 @@ class SpExtractor:
         if self.sn_type not in ['Ia', 'Ia_LEGACY', 'Ib', 'Ic']:
             warnings.warn('{} is not a supported type, defaulting to Ia'.format(self.sn_type))
             self.sn_type = 'Ia'
-        self.lines = LINES[self.sn_type]
+        self.lines = LINES[self.sn_type].copy()
 
         # instantiate DataFrame for continuum information
         # columns - 1/2: left/right continuum points, a: absorption minimum point, cont: continuum interpolator
