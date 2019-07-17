@@ -1,7 +1,8 @@
 # imports -- standard
+import numpy as np
 import matplotlib.pyplot as plt
 
-__all__ = ['setup_plot', 'plot_spec', 'plot_filled_spec', 'plot_continuum', 'plot_lines']
+__all__ = ['setup_plot', 'plot_spec', 'plot_filled_spec', 'plot_continuum', 'plot_lines', 'define_continuum']
 
 def setup_plot(title = None, xlabel = 'Rest Wavelength (\u212B)', ylabel = 'Normalized Flux', figsize = 'auto'):
     '''setup and return plot'''
@@ -60,3 +61,50 @@ def plot_lines(ax, absorptions, line_color = 'black', show_line_labels = True):
             if show_line_labels:
                 ax.text(absorptions.loc[feature, 'wava'], 1.1, feature, rotation = 'vertical',
                         horizontalalignment = 'right', verticalalignment = 'top')
+
+def _dc_onpick(event, cont_points, wave, flux, ax, fig):
+    '''handle click events triggered by define_continuum'''
+
+    # identify nearest point (in wavelength space)
+    nearest = np.abs(wave - event.xdata).argmin()
+
+    global cp
+    global c_line
+    cp = cont_points.get_offsets()
+    if cp.shape[0] == 2: # then was already 2 and should be reset
+        cont_points.set_offsets(np.array([[], []]).T)
+        c_line.set_data([], [])
+        fig.canvas.draw()
+        return
+    if cp.shape[0] < 2: # don't have both sides yet
+        cp = np.concatenate([cp, np.array([[wave[nearest], flux[nearest]]])])
+        cont_points.set_offsets(cp)
+    if cp.shape[0] == 2: # have both sides, plot continuum
+        c_line, = ax.plot(cp[:, 0], cp[:, 1], color = 'blue', alpha = 0.4)
+
+    fig.canvas.draw()
+
+def define_continuum(wave, flux, absorption):
+    '''interactively determine continuum by clicking on boundaries'''
+
+    # setup plot, add model, show low and high continuum boundaries
+    fig, ax = setup_plot(title = absorption.name, figsize = (6, 6))
+    plot_spec(ax, wave, flux, spec_color = 'red')
+    for edge in ['low_1', 'high_1', 'low_2', 'high_2']:
+        ax.axvline(absorption[edge], color = 'black', ls = '--')
+
+    # manually select continuum points
+    cont_points = ax.scatter([], [], color = 'black', s = 80)
+    plt.ion()
+    cid = fig.canvas.mpl_connect('button_press_event', lambda event: _dc_onpick(event, cont_points, wave, flux, ax, fig))
+    fig.show()
+    print('click points to two points to define continuum')
+    input('accept continuum [enter] or reset [click again] > ')
+    fig.canvas.mpl_disconnect(cid)
+    plt.ioff()
+    plt.clf()
+    plt.close()
+
+    # return continuum points
+    return cp.flatten()
+
