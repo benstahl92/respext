@@ -7,18 +7,6 @@ from scipy import interpolate, signal
 
 __all__ = ['LINES', 'get_speed', 'pseudo_continuum', 'pEW', 'absorption_depth']
 
-# Ia lines from original fork from spextractor --- used for consistency tests
-LINES_Ia_LEGACY = pd.DataFrame(index = ['Ca II H&K', 'Si 4000A', 'Mg II 4300A', 'Fe II 4800A',
-                                 'S W', 'Si II 5800A', 'Si II 6150A'],
-                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
-                        data = [(3945.12, 3450, 3800, 3800, 3950),
-                                (4129.73, 3840, 3950, 4000, 4200),
-                                (4481.2, 4000, 4250, 4300, 4700),
-                                (5083.42, 4300, 4700, 4950, 5600),
-                                (5536.24, 5050, 5300, 5500, 5750),
-                                (6007.7, 5400, 5700, 5800, 6000),
-                                (6355.1, 5800, 6100, 6200, 6600)])
-
 # Ia lines from Silverman et al. (2012)
 # modified to include "rest wavelengths" for blended features: Mg II and Fe II
 LINES_Ia = pd.DataFrame(index = ['Ca II H&K', 'Si II 4000', 'Mg II', 'Fe II', 'S II W',
@@ -35,16 +23,16 @@ LINES_Ia = pd.DataFrame(index = ['Ca II H&K', 'Si II 4000', 'Mg II', 'Fe II', 'S
                                 (8578.75, 7500, 8100, 8200, 8900, 0, 0)])
 
 LINES_Ib = pd.DataFrame(index = ['Fe II', 'He I'],
-                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
-                        data = [(5169, 4950, 5050, 5150, 5250),
-                                (5875, 5350, 5450, 5850, 6000)])
+                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2', 'blue_deriv', 'red_deriv'],
+                        data = [(5169, 4950, 5050, 5150, 5250, 0, 0),
+                                (5875, 5350, 5450, 5850, 6000, 0, 0)])
 
 LINES_Ic = pd.DataFrame(index = ['Fe II', 'O I'],
-                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2'],
-                        data = [(5169, 4950, 5050, 5150, 5250),
-                                (7773, 7250, 7350, 7750, 7950)])
+                        columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2', 'blue_deriv', 'red_deriv'],
+                        data = [(5169, 4950, 5050, 5150, 5250, 0, 0),
+                                (7773, 7250, 7350, 7750, 7950, 0, 0)])
 
-LINES = dict(Ia=LINES_Ia, Ia_LEGACY=LINES_Ia_LEGACY, Ib=LINES_Ib, Ic=LINES_Ic)
+LINES = dict(Ia=LINES_Ia, Ib=LINES_Ib, Ic=LINES_Ic)
 
 def get_speed(lambda_m, lambda_m_err, lambda_rest, c = 299.792458):
     '''
@@ -82,7 +70,8 @@ def pseudo_continuum(cont_coords):
 	return interpolate.interp1d(cont_coords[0], cont_coords[1], bounds_error = False, fill_value = 1)
 
 def _pEW(wavelength, nflux, cont_coords):
-    '''internal pEW calculation -- only pEW should be exposed for usual use'''
+    '''internal pEW calculation -- only pEW should be exposed for external use'''
+
     val = 0
     for i in range(len(wavelength)):
         if (wavelength[i] > cont_coords[0, 0]) and (wavelength[i] < cont_coords[0, 1]):
@@ -90,7 +79,7 @@ def _pEW(wavelength, nflux, cont_coords):
             val += dwave * (1 - nflux[i])
     return val
 
-def pEW(wavelength, flux, cont, cont_coords, err_method = 'default', model = None, flux_err = np.array([np.nan])):
+def pEW(wavelength, flux, cont, cont_coords, err_method = 'default', eflux = np.array([np.nan])):
     '''
     calculates the pEW between two chosen points
     cont should be the return of a call to <pseudo_continuum>
@@ -100,28 +89,22 @@ def pEW(wavelength, flux, cont, cont_coords, err_method = 'default', model = Non
     pEW_val = _pEW(wavelength, flux / cont(wavelength), cont_coords)
 
     # calculate pEW uncertainty
-    if (err_method == 'sample') and (model is not None):
-        sim_pEWs = []
-        for sample in model.posterior_samples_f(wavelength[:, np.newaxis], 100).squeeze().T:
-            sim_pEWs.append(_pEW(wavelength, sample / cont(wavelength), cont_coords))
-        pEW_err = np.std(sim_pEWs)
-        return pEW_val, pEW_err
-    elif (err_method == 'data') and (~np.isnan(flux_err).all()):
+    if (err_method == 'data') and (~np.isnan(eflux).all()):
         pEW_err_sq = 0
         for i in range(len(wavelength)):
             if (wavelength[i] > cont_coords[0, 0]) and (wavelength[i] < cont_coords[0, 1]):
                 dwave = 0.5 * (wavelength[i + 1] - wavelength[i - 1])
-                pEW_err_sq += (dwave**2) * (flux_err[i] / cont(wavelength[i]))**2
+                pEW_err_sq += (dwave**2) * (eflux[i] / cont(wavelength[i]))**2
         return pEW_val, np.sqrt(pEW_err_sq)
-    elif (err_method == 'data') and (np.isnan(flux_err).any()):
+    elif (err_method == 'data') and (np.isnan(eflux).any()):
         warnings.warn('NaN in flux err, computing pEW error using default method instead of from data')
 
     if err_method != 'LEGACY':
-        flux_err = np.sqrt(np.mean(signal.cwt(flux, signal.ricker, [1])**2))
+        eflux = np.sqrt(np.mean(signal.cwt(flux, signal.ricker, [1])**2))
     else:
-        flux_err = np.abs(signal.cwt(flux, signal.ricker, [1])).mean()
-    pEW_stat_err = flux_err
-    pEW_cont_err = np.abs(cont_coords[0, 0] - cont_coords[0, 1]) * flux_err
+        eflux = np.abs(signal.cwt(flux, signal.ricker, [1])).mean()
+    pEW_stat_err = eflux
+    pEW_cont_err = np.abs(cont_coords[0, 0] - cont_coords[0, 1]) * eflux
     pEW_err = math.hypot(pEW_stat_err, pEW_cont_err)
     
     return pEW_val, pEW_err
