@@ -2,7 +2,7 @@
 import warnings
 import pandas as pd
 import numpy as np
-import GPy
+#import GPy
 
 __all__ = ['load_spectrum', 'de_redshift', 'normalize_flux', 'remove_gaps', 'auto_prune', 'downsample', 'filter_outliers']
 
@@ -75,6 +75,8 @@ def filter_outliers(wave, flux, flux_err, sigma_outliers, sig_downsampling = 20,
     applies a heavy downsampling, then discards points that are
     further than <sigma_outliers> standard deviations
     '''
+
+    raise NotImplementedError
 
     x = wave[::sig_downsampling, np.newaxis]
     y = flux[::sig_downsampling, np.newaxis]

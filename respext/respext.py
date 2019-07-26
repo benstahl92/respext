@@ -14,7 +14,8 @@ import warnings
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import GPy
+#import GPy
+from scipy.signal import savgol_filter
 import pickle as pkl
 
 # imports -- internal
@@ -55,21 +56,21 @@ class SpExtractor:
 
         # get model
         self._setup_model()
-        if self.save_file is not None:
-            self.load_model()
-        else:
-            self.save_file = self.spec_file + '.respext.sav'
+        #if self.save_file is not None:
+        #    self.load_model()
+        #else:
+        #    self.save_file = self.spec_file + '.respext.sav'
 
-    def save_model(self):
-        '''save model'''
-        with open(self.save_file, 'wb') as f:
-            pkl.dump([self.model, self.mod_mean, self.mod_var, self.conf, self.mod_deriv], f)
+    #def save_model(self):
+    #    '''save model'''
+    #    with open(self.save_file, 'wb') as f:
+    #        pkl.dump([self.model, self.mod_mean, self.mod_var, self.conf, self.mod_deriv], f)
 
-    def load_model(self):
-        '''load model from save file'''
-        with open(self.save_file, 'rb') as f:
-            tmp = pkl.load(f)
-        self.model, self.mod_mean, self.mod_var, self.conf, self.mod_deriv = tmp
+    #def load_model(self):
+    #    '''load model from save file'''
+    #    with open(self.save_file, 'rb') as f:
+    #        tmp = pkl.load(f)
+    #    self.model, self.mod_mean, self.mod_var, self.conf, self.mod_deriv = tmp
 
     def _prepare_spectrum(self, remove_gaps, auto_prune, sigma_outliers, downsampling, **kwargs):
         '''
@@ -93,18 +94,21 @@ class SpExtractor:
         '''set up model'''
 
         self.x, self.y = self.wave[:, np.newaxis], self.flux[:, np.newaxis]
-        kernel = GPy.kern.Matern32(input_dim = 1, lengthscale = 300, variance = 0.001)
-        m = GPy.models.GPRegression(self.x, self.y, kernel)
-        m['Gaussian.noise.variance'][0] = 0.0027
-        self.model = m
+    #    kernel = GPy.kern.Matern32(input_dim = 1, lengthscale = 300, variance = 0.001)
+    #    m = GPy.models.GPRegression(self.x, self.y, kernel)
+    #    m['Gaussian.noise.variance'][0] = 0.0027
+    #    self.model = m
 
     def _fit_model(self):
         '''fit model to data --- this step may take some time'''
 
-        self.model.optimize()
-        self.mod_mean, self.mod_var = self.model.predict(self.x)
-        self.conf = np.sqrt(self.mod_var)
-        self.mod_deriv = self.model.predictive_gradients(self.x)[0][:,0,0]
+        #self.model.optimize()
+        #self.mod_mean, self.mod_var = self.model.predict(self.x)
+        #self.conf = np.sqrt(self.mod_var)
+        #self.mod_deriv = self.model.predictive_gradients(self.x)[0][:,0,0]
+        self.mod_mean = savgol_filter(self.flux, 51, 3)
+        self.conf = savgol_filter(np.abs(self.flux - self.mod_mean), 101, 3)
+        self.mod_deriv = savgol_filter(self.flux, 51, 3, deriv = 1)
 
     def _get_continuum(self, feature):
         '''given a feature, automatically determine the continuum'''
@@ -159,8 +163,8 @@ class SpExtractor:
                 return False
 
         # get wavelength, model flux at the feature edges and define continuum
-        self.continuum.loc[feature, ['wav1', 'flux1']] = self.x[max_point, 0], self.mod_mean[max_point, 0]
-        self.continuum.loc[feature, ['wav2', 'flux2']] = self.x[max_point_2, 0], self.mod_mean[max_point_2, 0]
+        self.continuum.loc[feature, ['wav1', 'flux1']] = self.x[max_point, 0], self.mod_mean[max_point]
+        self.continuum.loc[feature, ['wav2', 'flux2']] = self.x[max_point_2, 0], self.mod_mean[max_point_2]
         self.continuum.loc[feature, 'cont'] = pseudo_continuum(np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
                                                                self.continuum.loc[feature, ['flux1', 'flux2']]]))
 
@@ -182,7 +186,7 @@ class SpExtractor:
         for feature in features:
             selection = (self.wave > self.lines.loc[feature, 'low_1'] - 100) & (self.wave < self.lines.loc[feature, 'high_2'] + 100)
             self.continuum.loc[feature, ['wav1', 'flux1', 'wav2', 'flux2']] = utils.define_continuum(self.wave[selection],
-                                                                                                     self.mod_mean[selection, 0],
+                                                                                                     self.mod_mean[selection],
                                                                                                      self.lines.loc[feature])
             self.continuum.loc[feature, 'cont'] = pseudo_continuum(np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
                                                                    self.continuum.loc[feature, ['flux1', 'flux2']]]))
@@ -199,14 +203,15 @@ class SpExtractor:
         lambda_m, flux_m = x_values[min_pos], y_values[min_pos]
 
         # sample possible spectra from posterior and find the minima
-        samples = self.model.posterior_samples_f(x_values[:, np.newaxis], 100).squeeze().argmin(axis = 0)
-        samples = samples[np.logical_and(samples != 0, samples != x_values.shape[0])]
-        if samples.size == 0:
-            return np.nan, np.nan, np.nan, np.nan
+        #samples = self.model.posterior_samples_f(x_values[:, np.newaxis], 100).squeeze().argmin(axis = 0)
+        #samples = samples[np.logical_and(samples != 0, samples != x_values.shape[0])]
+        #if samples.size == 0:
+        #    return np.nan, np.nan, np.nan, np.nan
 
         # do error estimation as standard deviation of suitable realizations
-        lambda_m_samples, flux_m_samples = x_values[samples], y_values[samples]
-        lambda_m_err, flux_m_err = lambda_m_samples.std(), flux_m_samples.std()
+        #lambda_m_samples, flux_m_samples = x_values[samples], y_values[samples]
+        #lambda_m_err, flux_m_err = lambda_m_samples.std(), flux_m_samples.std()
+        lambda_m_err, flux_m_err = 1, 0.1 # dummy value till fixed
 
         if (self.lambda_m_err != 'measure') and ((type(self.lambda_m_err) == type(1)) or (type(self.lambda_m_err) == type(1.1))):
             lambda_m_err = self.lambda_m_err
@@ -225,7 +230,7 @@ class SpExtractor:
         selection = (self.wave > self.continuum.loc[feature, 'wav1']) & (self.wave < self.continuum.loc[feature, 'wav2'])
         lambda_m, lambda_m_err, flux_m, flux_m_err = self._get_feature_min(self.lines.loc[feature, 'rest_wavelength'],
                                                                            self.x[selection, 0],
-                                                                           self.mod_mean[selection, 0], feature)
+                                                                           self.mod_mean[selection], feature)
 
         self.continuum.loc[feature, ['wava', 'fluxa']] = lambda_m, flux_m
 
@@ -238,16 +243,16 @@ class SpExtractor:
 
         # compute pEWs
         if self.pEW_measure_from == 'model':
-            pew_results, pew_err_results = pEW(self.x[:,0], self.mod_mean[:,0], self.continuum.loc[feature, 'cont'],
+            pew_results, pew_err_results = pEW(self.x[:,0], self.mod_mean, self.continuum.loc[feature, 'cont'],
                                                np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
                                                          self.continuum.loc[feature, ['flux1', 'flux2']]]),
-                                               err_method = self.pEW_err_method, model = self.model,
+                                               err_method = self.pEW_err_method, model = None,
                                                flux_err = self.flux_err)
         else:
             pew_results, pew_err_results = pEW(self.wave, self.flux, self.continuum.loc[feature, 'cont'],
                                                np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
                                                          self.continuum.loc[feature, ['flux1', 'flux2']]]),
-                                               err_method = self.pEW_err_method, model = self.model,
+                                               err_method = self.pEW_err_method, model = None,
                                                flux_err = self.flux_err)
 
         # compute absorption depth
@@ -274,8 +279,8 @@ class SpExtractor:
         if initial_spec:
             utils.plot_spec(self.plotter[1], self.wave, self.flux, spec_color = 'black', spec_alpha = 0.4)
         if model:
-            utils.plot_filled_spec(self.plotter[1], self.x[:, 0], self.mod_mean[:, 0],
-                                   self.conf[:, 0], fill_color = 'red', fill_alpha = 0.2)
+            utils.plot_filled_spec(self.plotter[1], self.x[:, 0], self.mod_mean,
+                                   self.conf, fill_color = 'red', fill_alpha = 0.2)
         if continuum:
             utils.plot_continuum(self.plotter[1], self.continuum.loc[:, ['wav1', 'wav2', 'flux1', 'flux2']],
                                  cp_color = 'black', cl_color = 'blue', cl_alpha = 0.5)
