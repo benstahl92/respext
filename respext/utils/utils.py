@@ -24,7 +24,6 @@ def load_spectrum(filename, scale = 1):
             scale = 1e-15
         else:
             scale = 1
-    print(scale)
     return wave, flux * scale, eflux * scale
 
 def de_redshift(wave, z):
