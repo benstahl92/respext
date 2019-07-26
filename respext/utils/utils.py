@@ -24,7 +24,7 @@ def load_spectrum(filename, scale = 1):
             scale = 1e-15
         else:
             scale = 1
-
+    print(scale)
     return wave, flux * scale, eflux * scale
 
 def de_redshift(wave, z):
@@ -35,8 +35,8 @@ def de_redshift(wave, z):
 def rebin(wave, flux, eflux, factor):
     '''rebin spectrum by factor'''
 
-    if (type(factor) != type(1)) or (factor < 0):
-        warnings.warn('rebin factor must be a positive integer (not {}) -- doing nothing'.format(factor))
+    if (type(factor) != type(1)) or (factor < 1):
+        warnings.warn('rebin factor must be an integer greater than 1 (not {}) -- doing nothing'.format(factor))
         return wave, flux, eflux
 
     # bin wave, flux, and eflux (with error propagation)
@@ -52,8 +52,8 @@ def auto_prune(wave, flux, eflux, lines, prune_leeway = 100):
         warnings.warn('prune amount invalid ({}) -- doing nothing'.format(prune_leeway))
         return wave, flux, eflux
 
-    wav_min = lines.min().min() - prune_leeway
-    wav_max = lines.max().max() + prune_leeway
+    wav_min = lines['low_1'].min() - prune_leeway
+    wav_max = lines['high_2'].max() + prune_leeway
     i0, i1 = np.searchsorted(wave, [wav_min, wav_max])
     return wave[i0:i1], flux[i0:i1], eflux[i0:i1]
 
