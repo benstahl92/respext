@@ -100,10 +100,8 @@ def pEW(wavelength, flux, cont, cont_coords, err_method = 'default', eflux = np.
         else:
             warnings.warn('NaN in flux err, computing pEW error using default method instead of from data')
 
-    if err_method != 'LEGACY':
-        eflux = np.sqrt(np.mean(signal.cwt(flux, signal.ricker, [1])**2))
-    else:
-        eflux = np.abs(signal.cwt(flux, signal.ricker, [1])).mean()
+    # otherwise compute error using default method
+    eflux = np.sqrt(np.mean(signal.cwt(flux, signal.ricker, [1])**2))
     pEW_stat_err = eflux
     pEW_cont_err = np.abs(cont_coords[0, 0] - cont_coords[0, 1]) * eflux
     pEW_err = math.hypot(pEW_stat_err, pEW_cont_err)
