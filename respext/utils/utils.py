@@ -38,10 +38,14 @@ def rebin(wave, flux, eflux, factor):
         warnings.warn('rebin factor must be an integer greater than 1 (not {}) -- doing nothing'.format(factor))
         return wave, flux, eflux
 
+    if factor == 1:
+        return wave, flux, eflux
+
     # bin wave, flux, and eflux (with error propagation)
     binned = binned_statistic(wave, (wave, flux), statistic = 'mean', bins = int(len(wave) / factor))[0]
-    ebinned = np.sqrt(binned_statistic(wave, eflux**2, statistic = 'sum', bins = int(len(wave) / factor))[0]) / factor
-    return binned[0], binned[1], ebinned
+    eflux = np.sqrt(binned_statistic(wave, eflux**2, statistic = 'sum', bins = int(len(wave) / factor))[0]) / factor
+    wave, flux = binned[0], binned[1]
+    return wave[~np.isnan(wave)], flux[~np.isnan(wave)], eflux[~np.isnan(wave)]
 
 def auto_prune(wave, flux, eflux, lines, prune_leeway = 100):
     '''restrict to range of lines to be measured, with some leeway'''
