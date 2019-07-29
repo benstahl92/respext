@@ -19,6 +19,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
+from scipy.ndimage.filters import generic_filter
 import pickle as pkl
 
 # imports -- internal
@@ -29,7 +30,7 @@ class SpExtractor:
     '''container for a SN spectrum, with methods for all processing'''
 
     def __init__(self, spec_file, z, sn_type = 'Ia', spec_flux_scale = 'auto', # SN/spectrum information
-                 rebin = 1, prune = 100, # spectrum preprocessing information
+                 rebin = 1, prune = 200, # spectrum preprocessing information
                  no_overlap = True, lambda_m_err = 'measure', pEW_measure_from = 'data', pEW_err_method = 'default',
                  **kwargs):
 
@@ -44,7 +45,6 @@ class SpExtractor:
 
         # smoothing params
         self.signal_window_angstroms = 100
-        self.noise_window_angstroms = 500
 
         # select appropriate set of spectral lines
         if self.sn_type not in ['Ia', 'Ib', 'Ic']:
@@ -85,7 +85,7 @@ class SpExtractor:
 
         # smooth and compute noise and derivative
         self.sflux = savgol_filter(self.flux, signal_window_pixels, 3)
-        self.nflux = savgol_filter(np.abs(self.flux - self.sflux), noise_window_pixels, 3)
+        self.nflux = np.sqrt(generic_filter((self.flux - self.sflux)**2, np.mean, signal_window_pixels))
         self.sfluxprime = savgol_filter(self.flux, signal_window_pixels, 3, deriv = 1)
 
     def _get_continuum(self, feature):
