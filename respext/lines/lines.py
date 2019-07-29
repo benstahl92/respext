@@ -89,15 +89,16 @@ def pEW(wavelength, flux, cont, cont_coords, err_method = 'default', eflux = np.
     pEW_val = _pEW(wavelength, flux / cont(wavelength), cont_coords)
 
     # calculate pEW uncertainty
-    if (err_method == 'data') and (~np.isnan(eflux).all()):
-        pEW_err_sq = 0
-        for i in range(len(wavelength)):
-            if (wavelength[i] > cont_coords[0, 0]) and (wavelength[i] < cont_coords[0, 1]):
-                dwave = 0.5 * (wavelength[i + 1] - wavelength[i - 1])
-                pEW_err_sq += (dwave**2) * (eflux[i] / cont(wavelength[i]))**2
-        return pEW_val, np.sqrt(pEW_err_sq)
-    elif (err_method == 'data') and (np.isnan(eflux).any()):
-        warnings.warn('NaN in flux err, computing pEW error using default method instead of from data')
+    if err_method == 'data':
+        if np.logical_not(np.isnan(eflux)).all():
+            pEW_err_sq = 0
+            for i in range(len(wavelength)):
+                if (wavelength[i] > cont_coords[0, 0]) and (wavelength[i] < cont_coords[0, 1]):
+                    dwave = 0.5 * (wavelength[i + 1] - wavelength[i - 1])
+                    pEW_err_sq += (dwave**2) * (eflux[i] / cont(wavelength[i]))**2
+            return pEW_val, np.sqrt(pEW_err_sq)
+        else:
+            warnings.warn('NaN in flux err, computing pEW error using default method instead of from data')
 
     if err_method != 'LEGACY':
         eflux = np.sqrt(np.mean(signal.cwt(flux, signal.ricker, [1])**2))
