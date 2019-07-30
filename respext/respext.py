@@ -183,10 +183,6 @@ class SpExtractor:
                 return pd.Series([np.nan] * 10,
                                  index = ['Fb', 'e_Fb', 'Fr', 'e_Fr', 'pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
 
-        # if velocity is not detected, don't do pEW
-        #if np.isnan(velocity):
-        #   return pd.Series([np.nan] * 6, index = ['pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
-
         # compute pEW
         if self.pEW_measure_from == 'model':
             tmp_flux, tmp_err = self.sflux, self.nflux
@@ -209,7 +205,7 @@ class SpExtractor:
 
         # compute absorption depth if velocity successful
         if np.isnan(velocity):
-            a, e_err = np.nan, np.nan
+            a, a_err = np.nan, np.nan
         else:
             a, a_err = absorption_depth(lambda_m, flux_m, flux_m_err, self.continuum.loc[feature, 'cont'])
 
