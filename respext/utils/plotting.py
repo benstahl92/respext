@@ -29,14 +29,19 @@ def plot_filled_spec(ax, x, mean, conf, fill_color = 'red', fill_alpha = 0.3):
 
     ax.fill_between(x, mean - conf, mean + conf, color = fill_color, alpha = fill_alpha)
 
-def plot_continuum(ax, cont_points, cp_color = 'black', cl_color = 'blue', cl_alpha = 0.4):
-    '''plot continuum points and line'''
+def plot_continuum(ax, cont_points, cp_color = 'black', cl_color = 'blue', cl_alpha = 0.5, show_conf = True, conf_alpha = 0.3):
+    '''plot continuum points and line with optional uncertainties'''
 
     for feature in cont_points.index:
-        ax.plot(cont_points.loc[feature, ['wav1', 'wav2']], cont_points.loc[feature, ['flux1', 'flux2']],
-                color = cl_color, alpha = cl_alpha)
-        ax.scatter(cont_points.loc[feature, ['wav1', 'wav2']], cont_points.loc[feature, ['flux1', 'flux2']],
-                   color = cp_color, s = 80)
+        if cont_points.loc[feature].notnull().all():
+            if show_conf:
+                _, bot, top, _ = cont_points.loc[feature, 'cont'](cont_points.loc[feature, ['wav1', 'wav2']].values.astype(float))
+                ax.fill_between(cont_points.loc[feature, ['wav1', 'wav2']].values.astype(float), bot, top,
+                                color = cl_color, alpha = conf_alpha)
+            ax.plot(cont_points.loc[feature, ['wav1', 'wav2']], cont_points.loc[feature, ['flux1', 'flux2']],
+                    color = cl_color, alpha = cl_alpha)
+            ax.scatter(cont_points.loc[feature, ['wav1', 'wav2']], cont_points.loc[feature, ['flux1', 'flux2']],
+                       color = cp_color, s = 80)
 
 def plot_lines(ax, absorptions, line_color = 'black', show_line_labels = True):
     '''plot absorption lines'''
@@ -46,17 +51,17 @@ def plot_lines(ax, absorptions, line_color = 'black', show_line_labels = True):
 
             # absorption line below continuum
             ax.plot([absorptions.loc[feature, 'wava']] * 2,
-                    [absorptions.loc[feature, 'fluxa'], absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])],
+                    [absorptions.loc[feature, 'fluxa'], absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])[0]],
                     color = line_color)
 
             # points from which absorption was measured
             ax.scatter([absorptions.loc[feature, 'wava']] * 2,
-                       [absorptions.loc[feature, 'fluxa'], absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])],
+                       [absorptions.loc[feature, 'fluxa'], absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])[0]],
                        color = line_color, s = 40)
 
             # absorption line above continuum
             ax.plot([absorptions.loc[feature, 'wava']] * 2,
-                    [absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava']), 1.1],
+                    [absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])[0], 1.1],
                     color = line_color, ls = '--')
             if show_line_labels:
                 ax.text(absorptions.loc[feature, 'wava'], 1.1, feature, rotation = 'vertical',

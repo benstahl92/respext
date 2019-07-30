@@ -127,8 +127,9 @@ class SpExtractor:
         # get wavelength, model flux at the feature edges and define continuum
         self.continuum.loc[feature, ['wav1', 'flux1', 'e_flux1']] = self.wave[max_point], self.sflux[max_point], self.nflux[max_point]
         self.continuum.loc[feature, ['wav2', 'flux2', 'e_flux2']] = self.wave[max_point_2], self.sflux[max_point_2], self.nflux[max_point_2]
-        self.continuum.loc[feature, 'cont'] = pseudo_continuum(np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
-                                                               self.continuum.loc[feature, ['flux1', 'flux2']]]))
+        self.continuum.loc[feature, 'cont'] = pseudo_continuum(self.continuum.loc[feature, ['wav1', 'wav2']].values,
+                                                               self.continuum.loc[feature, ['flux1', 'flux2']].values,
+                                                               self.continuum.loc[feature, ['e_flux1', 'e_flux2']].values)
 
         return True
 
@@ -150,8 +151,9 @@ class SpExtractor:
             self.continuum.loc[feature, ['wav1', 'flux1', 'wav2', 'flux2']] = utils.define_continuum(self.wave[selection],
                                                                                                      self.sflux[selection],
                                                                                                      self.lines.loc[feature])
-            self.continuum.loc[feature, 'cont'] = pseudo_continuum(np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
-                                                                   self.continuum.loc[feature, ['flux1', 'flux2']]]))
+            self.continuum.loc[feature, 'cont'] = pseudo_continuum(self.continuum.loc[feature, ['wav1', 'wav2']].values,
+                                                                   self.continuum.loc[feature, ['flux1', 'flux2']].values,
+                                                                   self.continuum.loc[feature, ['e_flux1', 'e_flux2']].values)
 
     def _get_feature_min(self, lambda_0, x_values, y_values, ey_values, feature):
         '''compute location and flux of feature minimum'''
@@ -223,7 +225,7 @@ class SpExtractor:
 
         self.results = self.lines.apply(lambda feature: self._measure_feature(feature.name), axis = 1, result_type = 'expand')
 
-    def plot(self, initial_spec = True, model = True, continuum = True, lines = True, show_line_labels = True,
+    def plot(self, initial_spec = True, model = True, continuum = True, lines = True, show_conf = True, show_line_labels = True,
              save = False, display = True, **kwargs):
         '''make plot'''
 
@@ -237,10 +239,10 @@ class SpExtractor:
             utils.plot_spec(self.plotter[1], self.wave, self.flux, spec_color = 'black', spec_alpha = 0.4)
         if model:
             utils.plot_filled_spec(self.plotter[1], self.wave, self.sflux,
-                                   self.nflux, fill_color = 'red', fill_alpha = 0.2)
+                                   self.nflux, fill_color = 'red', fill_alpha = 0.3)
         if continuum:
-            utils.plot_continuum(self.plotter[1], self.continuum.loc[:, ['wav1', 'wav2', 'flux1', 'flux2']],
-                                 cp_color = 'black', cl_color = 'blue', cl_alpha = 0.5)
+            utils.plot_continuum(self.plotter[1], self.continuum.loc[:, ['wav1', 'wav2', 'flux1', 'flux2', 'cont']],
+                                 cp_color = 'black', cl_color = 'blue', cl_alpha = 0.6, show_conf = show_conf, conf_alpha = 0.15)
         if model:
             utils.plot_spec(self.plotter[1], self.wave, self.sflux, spec_color = 'red')
         if lines:
