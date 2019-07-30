@@ -3,8 +3,9 @@ import warnings
 import pandas as pd
 import numpy as np
 from scipy.stats import binned_statistic
+import extinction
 
-__all__ = ['load_spectrum', 'de_redshift', 'rebin', 'auto_prune', 'normalize_flux']
+__all__ = ['load_spectrum', 'extinction_correction', 'de_redshift', 'rebin', 'auto_prune', 'normalize_flux']
 
 def load_spectrum(filename, scale = 1):
     '''load spectrum from file'''
@@ -25,6 +26,14 @@ def load_spectrum(filename, scale = 1):
         else:
             scale = 1
     return wave, flux * scale, eflux * scale
+
+def extinction_correction(wave, flux, ebv, r_v = 3.1):
+
+    if ebv is None:
+        return flux
+
+    ext = extinction.odonnell94(wave, r_v * ebv, r_v)
+    return extinction.apply(-1.*ext, flux) # de-redden
 
 def de_redshift(wave, z):
     '''correct wavelength for redshift'''

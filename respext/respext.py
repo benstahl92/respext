@@ -32,7 +32,7 @@ class SpExtractor:
 
     def __init__(self,
                  spec_file = None, z = None, save_file = None, sn_type = 'Ia', spec_flux_scale = 'auto', # SN/spectrum information
-                 rebin = 1, prune = 200, # spectrum preprocessing information
+                 rebin = 1, prune = 200, ebv = None, # spectrum preprocessing information
                  no_overlap = True, lambda_m_err = 'measure', pEW_measure_from = 'data', pEW_err_method = 'default',
                  **kwargs):
 
@@ -41,6 +41,7 @@ class SpExtractor:
         self.z = z
         self.save_file = save_file
         self.sn_type = sn_type
+        self.ebv = ebv
         self.no_overlap = no_overlap
         self.lambda_m_err = lambda_m_err
         self.pEW_measure_from = pEW_measure_from
@@ -89,6 +90,7 @@ class SpExtractor:
 
         # process spectrum
         wave, flux, eflux = self._wave, self._flux, self._eflux
+        flux = utils.extinction_correction(wave, flux, self.ebv)
         wave = utils.de_redshift(wave, self.z)
         wave, flux, eflux = utils.rebin(wave, flux, eflux, rebin)
         self.wave, flux, eflux = utils.auto_prune(wave, flux, eflux, self.lines, prune_leeway = prune)

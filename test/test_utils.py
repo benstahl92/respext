@@ -22,6 +22,13 @@ def test_load_spectrum():
 	wave, flux, eflux = utils.load_spectrum(SCALED_SPEC_FILE, scale = 'auto')
 	assert np.median(flux) < 1e-10
 
+def test_extinction_correction():
+	wave, flux, eflux = utils.load_spectrum(Ia_SPEC_FILE)
+	f = utils.extinction_correction(wave, flux, None)
+	assert (f == flux).all()
+	f = utils.extinction_correction(wave, flux, 1)
+	assert np.median(f[wave > 5000])/np.median(f) < np.median(flux[wave > 5000])/np.median(flux)
+
 def test_de_redshift():
 	wave, flux, eflux = utils.load_spectrum(Ia_SPEC_FILE)
 	w = utils.de_redshift(wave, Ia_REDSHIFT)
