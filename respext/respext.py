@@ -20,6 +20,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
 from scipy.ndimage.filters import generic_filter
+from scipy.interpolate import CubicSpline
 import pickle as pkl
 
 # imports -- internal
@@ -163,12 +164,19 @@ class SpExtractor:
         if (min_pos < 5) or (min_pos > y_values.shape[0] - 5):
             return np.nan, np.nan, np.nan, np.nan
 
-        # measured wavelength, flux, and noise of feature
-        lambda_m, flux_m, flux_m_err = x_values[min_pos], y_values[min_pos], ey_values[min_pos]
+        # interpolate the feature with a Cubic Spline and use it to derive the absorption minimum
+        cs = CubicSpline(x_values, y_values, extrapolate = False)
+        extrema = cs.derivative().roots()
+        lambda_m = extrema[np.argmin(cs(extrema))]
+        flux_m = cs(lambda_m)
 
-        # compute wavelength error has std of all wavelengths corresponding to fluxes within noise from minimum
+        # rough calculation of flux minimum uncertainty
+        flux_m_err = np.median(ey_values)
+
+        # compute wavelength error has std of all wavelengths corresponding to fluxes within noise from minimum if not overridden
         lambda_m_err = np.std(x_values[y_values < (flux_m + flux_m_err)])
 
+        # optionally override lambda uncertainty with a specified value
         if (self.lambda_m_err != 'measure') and ((type(self.lambda_m_err) == type(1)) or (type(self.lambda_m_err) == type(1.1))):
             lambda_m_err = self.lambda_m_err
 
