@@ -73,7 +73,7 @@ class SpExtractor:
         # (re)perform smoothing and instantiation of continuum DataFrame
         self._smooth()
         # columns - 1/2: left/right continuum points, a: absorption minimum point, cont: continuum interpolator
-        self.continuum = pd.DataFrame(columns = ['wav1', 'flux1', 'wava', 'fluxa', 'wav2', 'flux2', 'cont'],
+        self.continuum = pd.DataFrame(columns = ['wav1', 'flux1', 'e_flux1', 'wava', 'fluxa', 'wav2', 'flux2', 'e_flux2', 'cont'],
                                       index = self.lines.index)
 
     def _smooth(self):
@@ -81,7 +81,6 @@ class SpExtractor:
 
         # compute window sizes in pixels
         signal_window_pixels = int(np.ceil( (self.signal_window_angstroms / self.angstroms_per_pixel) / 2) * 2 - 1)
-        noise_window_pixels = int(np.ceil( (self.noise_window_angstroms / self.angstroms_per_pixel) / 2) * 2 - 1)
 
         # smooth and compute noise and derivative
         self.sflux = savgol_filter(self.flux, signal_window_pixels, 3)
@@ -126,8 +125,8 @@ class SpExtractor:
             return False
 
         # get wavelength, model flux at the feature edges and define continuum
-        self.continuum.loc[feature, ['wav1', 'flux1']] = self.wave[max_point], self.sflux[max_point]
-        self.continuum.loc[feature, ['wav2', 'flux2']] = self.wave[max_point_2], self.sflux[max_point_2]
+        self.continuum.loc[feature, ['wav1', 'flux1', 'e_flux1']] = self.wave[max_point], self.sflux[max_point], self.nflux[max_point]
+        self.continuum.loc[feature, ['wav2', 'flux2', 'e_flux2']] = self.wave[max_point_2], self.sflux[max_point_2], self.nflux[max_point_2]
         self.continuum.loc[feature, 'cont'] = pseudo_continuum(np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
                                                                self.continuum.loc[feature, ['flux1', 'flux2']]]))
 
@@ -179,40 +178,45 @@ class SpExtractor:
         # run optimization if it has not already been done, and check if successful
         if np.isnan(self.continuum.loc[feature, 'wav1']):
             if not self._get_continuum(feature):
-                return pd.Series([np.nan] * 6, index = ['pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
+                return pd.Series([np.nan] * 10,
+                                 index = ['Fb', 'e_Fb', 'Fr', 'e_Fr', 'pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
+
+        # if velocity is not detected, don't do pEW
+        #if np.isnan(velocity):
+        #   return pd.Series([np.nan] * 6, index = ['pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
+
+        # compute pEW
+        if self.pEW_measure_from == 'model':
+            tmp_flux, tmp_err = self.sflux, self.nflux
+        else:
+            tmp_flux, tmp_err = self.flux, self.eflux
+        pew_results, pew_err_results = pEW(self.wave, tmp_flux, self.continuum.loc[feature, 'cont'],
+                                           np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
+                                                     self.continuum.loc[feature, ['flux1', 'flux2']]]),
+                                           err_method = self.pEW_err_method, eflux = tmp_err)
 
         # get feature minimum
         selection = (self.wave > self.continuum.loc[feature, 'wav1']) & (self.wave < self.continuum.loc[feature, 'wav2'])
         lambda_m, lambda_m_err, flux_m, flux_m_err = self._get_feature_min(self.lines.loc[feature, 'rest_wavelength'],
                                                                            self.wave[selection], self.sflux[selection], 
                                                                            self.nflux[selection], feature)
-
         self.continuum.loc[feature, ['wava', 'fluxa']] = lambda_m, flux_m
 
-        # compute and store velocity
+        # compute velocity
         velocity, velocity_err = get_speed(lambda_m, lambda_m_err, self.lines.loc[feature, 'rest_wavelength'])
 
-        # if velocity is not detected, don't do pEW
+        # compute absorption depth if velocity successful
         if np.isnan(velocity):
-           return pd.Series([np.nan] * 6, index = ['pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
-
-        # compute pEWs
-        if self.pEW_measure_from == 'model':
-            tmp_flux = self.sflux
-            tmp_err = self.nflux
+            a, e_err = np.nan, np.nan
         else:
-            tmp_flux = self.flux
-            tmp_err = self.eflux
-        pew_results, pew_err_results = pEW(self.wave, tmp_flux, self.continuum.loc[feature, 'cont'],
-                                           np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
-                                                     self.continuum.loc[feature, ['flux1', 'flux2']]]),
-                                           err_method = self.pEW_err_method, eflux = tmp_err)
+            a, a_err = absorption_depth(lambda_m, flux_m, flux_m_err, self.continuum.loc[feature, 'cont'])
 
-        # compute absorption depth
-        a, a_err = absorption_depth(lambda_m, flux_m, flux_m_err, self.continuum.loc[feature, 'cont'])
-
-        return pd.Series([pew_results, pew_err_results, velocity, velocity_err, a, a_err],
-                         index = ['pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
+        return pd.Series([self.continuum.loc[feature, 'flux1'] * self.flux_norm_factor / 1e-15, 
+                          self.continuum.loc[feature, 'e_flux1'] * self.flux_norm_factor / 1e-15,
+                          self.continuum.loc[feature, 'flux2'] * self.flux_norm_factor / 1e-15,
+                          self.continuum.loc[feature, 'e_flux2'] * self.flux_norm_factor / 1e-15,
+                          pew_results, pew_err_results, velocity, velocity_err, a, a_err],
+                         index = ['Fb', 'e_Fb', 'Fr', 'e_Fr', 'pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
 
     def process(self):
         '''do full processing of spectrum by measuring each feature'''
