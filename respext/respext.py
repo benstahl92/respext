@@ -122,6 +122,8 @@ class SpExtractor:
             prev_blue_edge = self.continuum.loc[:, 'wav2'].iloc[prev_iloc]
             if (prev_iloc >= 0) and (prev_blue_edge > low_1) and (prev_blue_edge < high_1):
                  low_1 = self.continuum.loc[:, 'wav2'].iloc[prev_iloc]
+            elif (prev_iloc >= 0) and (~np.isnan(prev_blue_edge)) and (prev_blue_edge > low_1):
+                return False
 
         # identify indices of feature edge bounds
         cp_1 = np.searchsorted(self.wave, (low_1, high_1))
