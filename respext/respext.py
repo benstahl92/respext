@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
 from scipy.ndimage.filters import generic_filter
 from scipy.interpolate import CubicSpline
-import pickle as pkl
+import dill as pkl
 
 # imports -- internal
 from . import utils
@@ -30,7 +30,8 @@ from .lines import LINES, get_speed, pseudo_continuum, pEW, absorption_depth
 class SpExtractor:
     '''container for a SN spectrum, with methods for all processing'''
 
-    def __init__(self, spec_file, z, sn_type = 'Ia', spec_flux_scale = 'auto', # SN/spectrum information
+    def __init__(self,
+                 spec_file = None, z = None, save_file = None, sn_type = 'Ia', spec_flux_scale = 'auto', # SN/spectrum information
                  rebin = 1, prune = 200, # spectrum preprocessing information
                  no_overlap = True, lambda_m_err = 'measure', pEW_measure_from = 'data', pEW_err_method = 'default',
                  **kwargs):
@@ -38,11 +39,23 @@ class SpExtractor:
         # store arguments from instantiation
         self.spec_file = spec_file
         self.z = z
+        self.save_file = save_file
         self.sn_type = sn_type
         self.no_overlap = no_overlap
         self.lambda_m_err = lambda_m_err
         self.pEW_measure_from = pEW_measure_from
         self.pEW_err_method = pEW_err_method
+
+        # determine how to instantiate
+        if self.save_file is not None:
+            self.load()
+            return
+        elif (isinstance(self.spec_file, str) and (isinstance(self.z, float) or (isinstance(self.z, int)))):
+            self.save_file = self.spec_file + '.respext.sav'
+            pass
+        else:
+            warnings.warn('Instantiation failed. Must give a valid save file OR spectrum AND redshift')
+            return
 
         # smoothing params
         self.signal_window_angstroms = 100
@@ -57,7 +70,18 @@ class SpExtractor:
         self._wave, self._flux, self._eflux = utils.load_spectrum(self.spec_file, scale = spec_flux_scale)
         self.prepare(rebin = rebin, prune = prune, **kwargs)
 
-    def prepare(self, rebin = 1, prune = 100, **kwargs):
+    def save(self):
+        '''save current state'''
+        with open(self.save_file, 'wb') as f:
+            pkl.dump(self.__dict__, f)
+
+    def load(self):
+        '''load from save file'''
+        with open(self.save_file, 'rb') as f:
+            tmp = pkl.load(f)
+        self.__dict__.update(tmp)
+
+    def prepare(self, rebin = 1, prune = 200, **kwargs):
         '''
         perform preparation steps of de-redshifting and normalizing flux of spectrum
         optional intermediate steps: rebin, prune

@@ -12,6 +12,12 @@ Ia_SPEC_FILE = os.path.join(os.path.dirname(TEST_DIR), 'example', 'sn2006mo', 's
 Ia_SPEC_FILE_NOERR = os.path.join(os.path.dirname(TEST_DIR), 'example', 'sn2006mo', 'sn2006mo-20061113.21-fast_noerr.flm')
 Ia_REDSHIFT = 0.0459
 
+def test_noargs():
+	with warnings.catch_warnings(record = True) as w:
+		warnings.simplefilter('always')
+		s = respext.SpExtractor()
+		assert 'Instantiation failed' in str(w[0].message)
+
 def test_default_Ia():
 	with warnings.catch_warnings(record = True) as w:
 		warnings.simplefilter('always')
