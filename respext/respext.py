@@ -47,9 +47,13 @@ class SpExtractor:
         self.pEW_measure_from = pEW_measure_from
         self.pEW_err_method = pEW_err_method
 
+        # features to skip
+        self.skip_features = []
+
         # determine how to instantiate
-        if self.save_file is not None:
+        if save_file is not None:
             self.load()
+            self.save_file = save_file
             return
         elif (isinstance(self.spec_file, str) and (isinstance(self.z, float) or (isinstance(self.z, int)))):
             self.save_file = self.spec_file + '.respext.sav'
@@ -117,6 +121,9 @@ class SpExtractor:
     def _get_continuum(self, feature):
         '''given a feature, automatically determine the continuum'''
 
+        if feature in self.skip_features:
+            return False
+
         # optionally enforce non-overlapping of continuum points
         rest_wavelength, low_1, high_1, low_2, high_2, blue_deriv, red_deriv = self.lines.loc[feature]
         if self.no_overlap:
@@ -165,6 +172,9 @@ class SpExtractor:
     def pick_continuum(self, features = None):
         '''interactively select continuum points'''
 
+        # reset skip features
+        self.skip_features = []
+
         if features is None:
             print('Select number(s) feature (or features separated by commas):')
             for idx, feature in enumerate(self.lines.index):
@@ -180,9 +190,16 @@ class SpExtractor:
             self.continuum.loc[feature, ['wav1', 'flux1', 'wav2', 'flux2']] = utils.define_continuum(self.wave[selection],
                                                                                                      self.sflux[selection],
                                                                                                      self.lines.loc[feature])
-            self.continuum.loc[feature, 'cont'] = pseudo_continuum(self.continuum.loc[feature, ['wav1', 'wav2']].values,
-                                                                   self.continuum.loc[feature, ['flux1', 'flux2']].values,
-                                                                   self.continuum.loc[feature, ['e_flux1', 'e_flux2']].values)
+            selection1 = np.argmin(np.abs(self.wave - self.continuum.loc[feature, 'wav1']))
+            selection2 = np.argmin(np.abs(self.wave - self.continuum.loc[feature, 'wav2']))
+            self.continuum.loc[feature, ['e_flux1', 'e_flux2']] = self.nflux[selection1], self.nflux[selection2]
+            if np.isnan(self.continuum.loc[feature, 'wav1']):
+                self.skip_features.append(feature)
+                self.continuum.loc[feature] = np.nan
+            else:
+                self.continuum.loc[feature, 'cont'] = pseudo_continuum(self.continuum.loc[feature, ['wav1', 'wav2']].values,
+                                                                       self.continuum.loc[feature, ['flux1', 'flux2']].values,
+                                                                       self.continuum.loc[feature, ['e_flux1', 'e_flux2']].values)
 
     def _get_feature_min(self, lambda_0, x_values, y_values, ey_values, feature):
         '''compute location and flux of feature minimum'''
@@ -212,6 +229,8 @@ class SpExtractor:
 
     def _measure_feature(self, feature):
         '''measure feature'''
+
+        ### this check needs updating b/c shouldn't be done in in interactive mode
 
         # run optimization if it has not already been done, and check if successful
         if np.isnan(self.continuum.loc[feature, 'wav1']):
@@ -260,11 +279,6 @@ class SpExtractor:
     def plot(self, initial_spec = True, model = True, continuum = True, lines = True, show_conf = True, show_line_labels = True,
              save = False, display = True, **kwargs):
         '''make plot'''
-
-        # check if plotting can be done
-        if not hasattr(self, 'sflux'):
-            warnings.warn('Cannot plot until spectrum has been processed!')
-            return
 
         self.plotter = utils.setup_plot(**kwargs)
         if initial_spec:

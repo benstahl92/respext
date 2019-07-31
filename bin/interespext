@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+
+# standard imports
+import matplotlib
+matplotlib.use('TkAgg')
+
+# custom imports
+import respext
+
+# -----------------------------------------------------------------------------------
+# interespext --- interactively reprocess a respext result (by picking continua)
+
+# -----------------------------------------------------------------------------------
+# main function
+
+def main(save_file, features = 'all', save = True, plot = True):
+    '''given respext save file, reprocess after interactively selecting continuum'''
+
+    # load from save
+    s = respext.SpExtractor(save_file = save_file)
+
+    # parse features to reprocess
+    if features == 'all':
+        features = s.results.index
+    elif ',' in features:
+        features = s.results.index[[int(feat.strip()) for feat in features.split(',')]]
+    else:
+        try:
+            features = [s.results.index[int(features)]]
+        except ValueError:
+            print('failed to parse feature selection, please select manually')
+            features = None
+
+    # pick new continua and process
+    s.pick_continuum(features = features)
+    s.process()
+    s.report()
+
+    if save:
+        print('state saved: {}'.format(s.save_file))
+        s.save()
+    if plot:
+        print('plot created: {}'.format(save_file.replace('.sav', '.png')))
+        s.plot(save = save_file.replace('.sav', '.png'))
+
+# -----------------------------------------------------------------------------------
+# script
+
+if __name__ == '__main__':
+
+    # collect arguments
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('save_file', type = str, help = 'name respext save file to load from')
+    parser.add_argument('-f', '--features', dest = 'features', type = str, default = 'all',
+                        help = 'comma separated list of integers for features')
+    parser.add_argument('-ns', '--no-save', dest = 'save', action = 'store_const',
+                        const = False, default = True, help = 'do not save results')
+    parser.add_argument('-np', '--no-plot', dest = 'plot', action = 'store_const',
+                        const = False, default = True, help = 'do not generate plot')
+    args = parser.parse_args()
+
+    # execute
+    main(args.save_file, features = args.features, save = args.save, plot = args.plot)

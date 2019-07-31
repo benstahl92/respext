@@ -24,6 +24,12 @@ def test_default_Ia():
 		s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, sn_type = 'UNSUPPORTED TYPE')
 		assert s.sn_type == 'Ia'
 
+def test_skip_features():
+	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT)
+	s.skip_features = ['Si II 6355']
+	s.process()
+	assert s.results.loc['Si II 6355'].isnull().all()
+
 def test_plotter():
 	'''make sure plotter gets set up correctly'''
 	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT)
@@ -39,7 +45,7 @@ def test_plotter():
 
 def test_report(capfd):
 	'''test reporting'''
-	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT)
+	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, pEW_measure_from = 'model')
 	s.process()
 	s.report()
 	out, err = capfd.readouterr()

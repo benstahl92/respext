@@ -80,6 +80,7 @@ def _dc_onpick(event, cont_points, wave, flux, ax, fig):
         cont_points.set_offsets(np.array([[], []]).T)
         c_line.set_data([], [])
         fig.canvas.draw()
+        cp = []
         return
     if cp.shape[0] < 2: # don't have both sides yet
         cp = np.concatenate([cp, np.array([[wave[nearest], flux[nearest]]])])
@@ -96,7 +97,11 @@ def define_continuum(wave, flux, absorption):
     fig, ax = setup_plot(title = absorption.name, figsize = (6, 6))
     plot_spec(ax, wave, flux, spec_color = 'red')
     for edge in ['low_1', 'high_1', 'low_2', 'high_2']:
-        ax.axvline(absorption[edge], color = 'black', ls = '--')
+        if edge in ['low_1', 'high_1']:
+            col = 'orangered'
+        else:
+            col = 'royalblue'
+        ax.axvline(absorption[edge], color = col, ls = '--')
 
     # manually select continuum points
     cont_points = ax.scatter([], [], color = 'black', s = 80)
@@ -111,5 +116,11 @@ def define_continuum(wave, flux, absorption):
     plt.close()
 
     # return continuum points
-    return cp.flatten()
+    try:
+        if len(cp) == 0:
+            return [np.nan]*4
+        else:
+            return cp.flatten()
+    except NameError:
+        return [np.nan]*4
 
