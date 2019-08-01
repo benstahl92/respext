@@ -261,6 +261,7 @@ class SpExtractor:
         # compute absorption depth if velocity successful
         if np.isnan(velocity):
             a, a_err = np.nan, np.nan
+            self.continuum.loc[feature, ['wava', 'fluxa']] = np.nan, np.nan
         else:
             a, a_err = absorption_depth(lambda_m, flux_m, flux_m_err, self.continuum.loc[feature, 'cont'])
 
@@ -292,7 +293,7 @@ class SpExtractor:
         if model:
             utils.plot_spec(self.plotter[1], self.wave, self.sflux, spec_color = 'red')
         if lines:
-            utils.plot_lines(self.plotter[1], self.continuum.loc[:, ['wava', 'fluxa', 'cont']],
+            utils.plot_lines(self.plotter[1], self.continuum,
                              show_line_labels = show_line_labels)
         plt.tight_layout()
         if save is not False:

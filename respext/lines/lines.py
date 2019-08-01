@@ -8,14 +8,13 @@ from scipy import signal
 __all__ = ['LINES', 'get_speed', 'pseudo_continuum', 'pEW', 'absorption_depth']
 
 # Ia lines from Silverman et al. (2012)
-# modified to include "rest wavelengths" for blended features: Mg II and Fe II
 LINES_Ia = pd.DataFrame(index = ['Ca II H&K', 'Si II 4000', 'Mg II', 'Fe II', 'S II W',
                                  'Si II 5972', 'Si II 6355', 'O I triplet', 'Ca II near-IR triplet'],
                         columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2', 'blue_deriv', 'red_deriv'],
                         data = [(3945.28, 3400, 3800, 3800, 4100, 0, 0),
                                 (4129.73, 3850, 4000, 4000, 4150, 0, 0),
-                                (4481.20, 4000, 4150, 4350, 4700, 0, 0),
-                                (5083.42, 4350, 4700, 5050, 5550, 0, 0),
+                                (np.nan, 4000, 4150, 4350, 4700, 0, 0),
+                                (np.nan, 4350, 4700, 5050, 5550, 0, 0),
                                 (5624.32, 5100, 5300, 5450, 5700, 0, 0),
                                 (5971.85, 5400, 5700, 5750, 6000, 0, 0),
                                 (6355.21, 5750, 6060, 6200, 6600, 0, 0),
