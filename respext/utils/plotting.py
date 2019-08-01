@@ -1,6 +1,23 @@
 # imports -- standard
 import numpy as np
+from matplotlib import rcParams
 import matplotlib.pyplot as plt
+
+# plotting style defaults
+rcParams['font.family'] = 'serif'
+rcParams['xtick.minor.visible'] = True
+rcParams['xtick.minor.size'] = 4
+rcParams['xtick.major.size'] = 8
+rcParams['xtick.major.pad'] = 10
+rcParams['ytick.minor.visible'] = True
+rcParams['ytick.minor.size'] = 4
+rcParams['ytick.major.size'] = 8
+rcParams['ytick.major.pad'] = 10
+rcParams['axes.grid'] = False
+rcParams['xtick.direction'] = 'in'
+rcParams['xtick.top'] = True
+rcParams['ytick.direction'] = 'in'
+rcParams['ytick.right'] = True
 
 __all__ = ['setup_plot', 'plot_spec', 'plot_filled_spec', 'plot_continuum', 'plot_lines', 'define_continuum']
 
@@ -83,14 +100,14 @@ def _dc_onpick(event, cont_points, wave, flux, ax, fig):
     # identify nearest point (in wavelength space)
     nearest = np.abs(wave - event.xdata).argmin()
 
-    global cp
+    #global cp
     global c_line
     cp = cont_points.get_offsets()
     if cp.shape[0] == 2: # then was already 2 and should be reset
         cont_points.set_offsets(np.array([[], []]).T)
         c_line.set_data([], [])
         fig.canvas.draw()
-        cp = []
+        #cp = []
         return
     if cp.shape[0] < 2: # don't have both sides yet
         cp = np.concatenate([cp, np.array([[wave[nearest], flux[nearest]]])])
@@ -109,9 +126,11 @@ def define_continuum(wave, flux, absorption):
     for edge in ['low_1', 'high_1', 'low_2', 'high_2']:
         if edge in ['low_1', 'high_1']:
             col = 'orangered'
+            sty = '--'
         else:
             col = 'royalblue'
-        ax.axvline(absorption[edge], color = col, ls = '--')
+            sty = ':'
+        ax.axvline(absorption[edge], color = col, ls = sty)
 
     # manually select continuum points
     cont_points = ax.scatter([], [], color = 'black', s = 80)
@@ -125,6 +144,7 @@ def define_continuum(wave, flux, absorption):
     plt.clf()
     plt.close()
 
+    cp = cont_points.get_offsets()
     # return continuum points
     try:
         if len(cp) == 0:

@@ -31,11 +31,17 @@ def main(save_file, features = 'all', save = True, plot = True):
             print('failed to parse feature selection, please select manually')
             features = None
 
+    print('initial results')
+    s.report()
+
     # pick new continua and process
     s.pick_continuum(features = features)
     s.process()
+
+    print('\nnew results')
     s.report()
 
+    print('\n')
     if save:
         print('state saved: {}'.format(s.save_file))
         s.save()

@@ -186,7 +186,7 @@ class SpExtractor:
         # not checking that everything else is iterable, or that it has real features, so use correctly!
 
         for feature in features:
-            selection = (self.wave > self.lines.loc[feature, 'low_1'] - 100) & (self.wave < self.lines.loc[feature, 'high_2'] + 100)
+            selection = (self.wave > self.lines.loc[feature, 'low_1'] - 250) & (self.wave < self.lines.loc[feature, 'high_2'] + 250)
             self.continuum.loc[feature, ['wav1', 'flux1', 'wav2', 'flux2']] = utils.define_continuum(self.wave[selection],
                                                                                                      self.sflux[selection],
                                                                                                      self.lines.loc[feature])
