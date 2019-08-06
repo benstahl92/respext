@@ -36,7 +36,7 @@ def main(save_file, features = 'all', save = True, plot = True):
 
     # pick new continua and process
     s.pick_continuum(features = features)
-    s.process()
+    s.process(features = features)
 
     print('\nnew results')
     s.report()
@@ -46,8 +46,8 @@ def main(save_file, features = 'all', save = True, plot = True):
         print('state saved: {}'.format(s.save_file))
         s.save()
     if plot:
-        print('plot created: {}'.format(save_file.replace('.sav', '.png')))
-        s.plot(save = save_file.replace('.sav', '.png'))
+        print('plot created: {}'.format(save_file.replace('.respexted.sav', '.png')))
+        s.plot(title = s.plot_title, save = save_file.replace('.respexted.sav', '.png'), figsize = (12,6))
 
 # -----------------------------------------------------------------------------------
 # script

@@ -125,10 +125,10 @@ def define_continuum(wave, flux, absorption):
     plot_spec(ax, wave, flux, spec_color = 'red')
     for edge in ['low_1', 'high_1', 'low_2', 'high_2']:
         if edge in ['low_1', 'high_1']:
-            col = 'orangered'
+            col = 'royalblue'
             sty = '--'
         else:
-            col = 'royalblue'
+            col = 'orangered'
             sty = ':'
         ax.axvline(absorption[edge], color = col, ls = sty)
 

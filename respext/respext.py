@@ -272,10 +272,14 @@ class SpExtractor:
                           pew_results, pew_err_results, velocity, velocity_err, a, a_err],
                          index = ['Fb', 'e_Fb', 'Fr', 'e_Fr', 'pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
 
-    def process(self):
+    def process(self, features = 'all'):
         '''do full processing of spectrum by measuring each feature'''
 
-        self.results = self.lines.apply(lambda feature: self._measure_feature(feature.name), axis = 1, result_type = 'expand')
+        if type(features) == type('this is a string'):
+            self.results = self.lines.apply(lambda feature: self._measure_feature(feature.name), axis = 1, result_type = 'expand')
+        # otherwise ind should be a list of features to do, but not checking so use wisely!
+        else:
+            self.results.loc[features] = self.lines.loc[features].apply(lambda feature: self._measure_feature(feature.name), axis = 1, result_type = 'expand')
 
     def plot(self, initial_spec = True, model = True, continuum = True, lines = True, show_conf = True, show_line_labels = True,
              save = False, display = True, **kwargs):
