@@ -45,7 +45,7 @@ def test_plotter():
 
 def test_report(capfd):
 	'''test reporting'''
-	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, pEW_measure_from = 'model')
+	s = respext.SpExtractor(spec_file = Ia_SPEC_FILE, z = Ia_REDSHIFT, pEW_measure_from = 'model', lambda_m_err = 2)
 	s.process()
 	s.report()
 	out, err = capfd.readouterr()

@@ -13,7 +13,7 @@ import respext
 # -----------------------------------------------------------------------------------
 # main function
 
-def main(save_file, features = 'all', save = True, plot = True):
+def main(save_file, features = 'all', pick_minimum = False, save = True, plot = True):
     '''given respext save file, reprocess after interactively selecting continuum'''
 
     # load from save
@@ -34,8 +34,14 @@ def main(save_file, features = 'all', save = True, plot = True):
     print('initial results')
     s.report()
 
-    # pick new continua and process
-    s.pick_continuum(features = features)
+    if not pick_minimum:
+        s.pick_continuum(features = features)
+    elif len(features) == 1:
+        s.pick_feature_min(features[0])
+    else:
+        print('cannot pick minimum for more than one feature at a time')
+        return
+
     s.process(features = features)
 
     print('\nnew results')
@@ -60,6 +66,8 @@ if __name__ == '__main__':
     parser.add_argument('save_file', type = str, help = 'name respext save file to load from')
     parser.add_argument('-f', '--features', dest = 'features', type = str, default = 'all',
                         help = 'comma separated list of integers for features')
+    parser.add_argument('-m', '--pick-minimum', dest = 'pick_minimum', action = 'store_const',
+                        const = True, default = False, help = 'set bounds to pick minimum for feature')
     parser.add_argument('-ns', '--no-save', dest = 'save', action = 'store_const',
                         const = False, default = True, help = 'do not save results')
     parser.add_argument('-np', '--no-plot', dest = 'plot', action = 'store_const',
@@ -67,4 +75,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # execute
-    main(args.save_file, features = args.features, save = args.save, plot = args.plot)
+    main(args.save_file, features = args.features, pick_minimum = args.pick_minimum,
+         save = args.save, plot = args.plot)

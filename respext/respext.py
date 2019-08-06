@@ -227,6 +227,19 @@ class SpExtractor:
 
         return lambda_m, lambda_m_err, flux_m, flux_m_err
 
+    def pick_feature_min(self, feature):
+        '''interactively set absorption minimum'''
+
+        # reset skip features
+        self.skip_features = []
+
+        selection = (self.wave > self.lines.loc[feature, 'low_1'] - 250) & (self.wave < self.lines.loc[feature, 'high_2'] + 250)
+        wav1, flux1, wav2, flux2 = utils.define_continuum(self.wave[selection], self.sflux[selection], self.lines.loc[feature])
+        selection = (self.wave > wav1) & (self.wave < wav2)
+        self._min_data = self._get_feature_min(self.lines.loc[feature, 'rest_wavelength'], self.wave[selection],
+                                               self.sflux[selection], self.nflux[selection], feature)
+        self.skip_features.append(feature)
+
     def _measure_feature(self, feature):
         '''measure feature'''
 
@@ -249,10 +262,18 @@ class SpExtractor:
                                            err_method = self.pEW_err_method, eflux = tmp_err)
 
         # get feature minimum
-        selection = (self.wave > self.continuum.loc[feature, 'wav1']) & (self.wave < self.continuum.loc[feature, 'wav2'])
-        lambda_m, lambda_m_err, flux_m, flux_m_err = self._get_feature_min(self.lines.loc[feature, 'rest_wavelength'],
-                                                                           self.wave[selection], self.sflux[selection], 
-                                                                           self.nflux[selection], feature)
+        if feature not in self.skip_features:
+            selection = (self.wave > self.continuum.loc[feature, 'wav1']) & (self.wave < self.continuum.loc[feature, 'wav2'])
+            lambda_m, lambda_m_err, flux_m, flux_m_err = self._get_feature_min(self.lines.loc[feature, 'rest_wavelength'],
+                                                                               self.wave[selection], self.sflux[selection], 
+                                                                               self.nflux[selection], feature)
+        elif hasattr(self, '_min_data'):
+            lambda_m, lambda_m_err, flux_m, flux_m_err = self._min_data
+        else:
+            warnings.warn('manual minimum is not set for {}'.format(feature))
+            return pd.Series([np.nan] * 10,
+                             index = ['Fb', 'e_Fb', 'Fr', 'e_Fr', 'pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
+
         self.continuum.loc[feature, ['wava', 'fluxa']] = lambda_m, flux_m
 
         # compute velocity
