@@ -248,8 +248,8 @@ class SpExtractor:
         # run optimization if it has not already been done, and check if successful
         if np.isnan(self.continuum.loc[feature, 'wav1']):
             if not self._get_continuum(feature):
-                return pd.Series([np.nan] * 10,
-                                 index = ['Fb', 'e_Fb', 'Fr', 'e_Fr', 'pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
+                return pd.Series([np.nan] * 12,
+                                 index = ['Fb', 'e_Fb', 'Fr', 'e_Fr', 'pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs', 'FWHM', 'e_FWHM'])
 
         # compute pEW
         if self.pEW_measure_from == 'model':
@@ -271,8 +271,8 @@ class SpExtractor:
             lambda_m, lambda_m_err, flux_m, flux_m_err = self._min_data
         else:
             warnings.warn('manual minimum is not set for {}'.format(feature))
-            return pd.Series([np.nan] * 10,
-                             index = ['Fb', 'e_Fb', 'Fr', 'e_Fr', 'pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
+            return pd.Series([np.nan] * 12,
+                             index = ['Fb', 'e_Fb', 'Fr', 'e_Fr', 'pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs', 'FWHM', 'e_FWHM'])
 
         self.continuum.loc[feature, ['wava', 'fluxa']] = lambda_m, flux_m
 
@@ -285,8 +285,10 @@ class SpExtractor:
             self.continuum.loc[feature, ['wava', 'fluxa']] = np.nan, np.nan
         else:
             a, a_err = absorption_depth(lambda_m, flux_m, flux_m_err, self.continuum.loc[feature, 'cont'])
-            fwhm, fwhm_err = FWHM(self.wave[selection], self.sflux[selection], self.nflux[selection], 
+            fwhm, fwhm_err = FWHM(self.wave, self.sflux, self.nflux, 
                                  lambda_m, flux_m, self.continuum.loc[feature, 'cont'])
+            if (self.continuum.loc[feature, 'wav1'] > lambda_m - fwhm / 2) or (self.continuum.loc[feature, 'wav2'] < lambda_m + fwhm / 2):
+                fwhm, fwhm_err = np.nan, np.nan
 
         return pd.Series([self.continuum.loc[feature, 'flux1'] * self.flux_norm_factor / 1e-15, 
                           self.continuum.loc[feature, 'e_flux1'] * self.flux_norm_factor / 1e-15,
