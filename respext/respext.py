@@ -25,7 +25,7 @@ import dill as pkl
 
 # imports -- internal
 from . import utils
-from .lines import LINES, get_speed, pseudo_continuum, pEW, absorption_depth
+from .lines import LINES, get_speed, pseudo_continuum, pEW, absorption_depth, FWHM
 
 class SpExtractor:
     '''container for a SN spectrum, with methods for all processing'''
@@ -279,19 +279,21 @@ class SpExtractor:
         # compute velocity
         velocity, velocity_err = get_speed(lambda_m, lambda_m_err, self.lines.loc[feature, 'rest_wavelength'])
 
-        # compute absorption depth if velocity successful
+        # compute absorption depth and FWHM if velocity successful
         if np.isnan(velocity):
-            a, a_err = np.nan, np.nan
+            a, a_err, fwhm, fwhm_err = np.nan, np.nan, np.nan, np.nan
             self.continuum.loc[feature, ['wava', 'fluxa']] = np.nan, np.nan
         else:
             a, a_err = absorption_depth(lambda_m, flux_m, flux_m_err, self.continuum.loc[feature, 'cont'])
+            fwhm, fwhm_err = FWHM(self.wave[selection], self.sflux[selection], self.nflux[selection], 
+                                 lambda_m, flux_m, self.continuum.loc[feature, 'cont'])
 
         return pd.Series([self.continuum.loc[feature, 'flux1'] * self.flux_norm_factor / 1e-15, 
                           self.continuum.loc[feature, 'e_flux1'] * self.flux_norm_factor / 1e-15,
                           self.continuum.loc[feature, 'flux2'] * self.flux_norm_factor / 1e-15,
                           self.continuum.loc[feature, 'e_flux2'] * self.flux_norm_factor / 1e-15,
-                          pew_results, pew_err_results, velocity, velocity_err, a, a_err],
-                         index = ['Fb', 'e_Fb', 'Fr', 'e_Fr', 'pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs'])
+                          pew_results, pew_err_results, velocity, velocity_err, a, a_err, fwhm, fwhm_err],
+                         index = ['Fb', 'e_Fb', 'Fr', 'e_Fr', 'pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs', 'FWHM', 'e_FWHM'])
 
     def process(self, features = 'all'):
         '''do full processing of spectrum by measuring each feature'''
@@ -301,6 +303,9 @@ class SpExtractor:
         # otherwise ind should be a list of features to do, but not checking so use wisely!
         else:
             self.results.loc[features] = self.lines.loc[features].apply(lambda feature: self._measure_feature(feature.name), axis = 1, result_type = 'expand')
+
+        # hack to fix unrequested sorting that happens to result columns
+        self.results = self.results[['Fb', 'e_Fb', 'Fr', 'e_Fr', 'pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs', 'FWHM', 'e_FWHM']]
 
     def plot(self, initial_spec = True, model = True, continuum = True, lines = True, show_conf = True, show_line_labels = True,
              save = False, display = True, **kwargs):

@@ -4,8 +4,9 @@ import warnings
 import pandas as pd
 import numpy as np
 from scipy import signal
+from scipy.interpolate import CubicSpline
 
-__all__ = ['LINES', 'get_speed', 'pseudo_continuum', 'pEW', 'absorption_depth']
+__all__ = ['LINES', 'get_speed', 'pseudo_continuum', 'pEW', 'absorption_depth', 'FWHM']
 
 # Ia lines from Silverman et al. (2012)
 LINES_Ia = pd.DataFrame(index = ['Ca II H&K', 'Si II 4000', 'Mg II', 'Fe II', 'S II W',
@@ -124,3 +125,33 @@ def absorption_depth(lambda_m, flux_m, flux_m_err, cont):
     a = ( fc - flux_m ) / fc
     a_err = np.sqrt(flux_m_err**2 + e_fc*(flux_m / fc)**2) / fc
     return a, a_err
+
+def FWHM(wavelength, flux, eflux, lambda_m, flux_m, cont):
+    '''compute FWHM from normalized feature'''
+
+    fc_m, _, _, e_fc_m = cont(lambda_m) # continuum flux and uncertainty at minimum
+    fc, _, _, e_fc = cont(wavelength) # continuum flux and uncertainty
+
+    # half maximum normalized flux occurs is mean of extreme (normalized) flux and continuum flux (normalize = 1)
+    hm = np.mean([flux_m / fc_m, 1])
+
+    # solve for intersection points with cubic spline
+    results = []
+    for factor in [0, eflux, -1*eflux]:
+        cs = CubicSpline(wavelength, ((flux + factor) / fc) - hm, extrapolate = False)
+        roots = cs.roots()
+        if len(roots[roots - lambda_m < 0]) == 0:
+            low = np.nan
+        else:
+            low = roots[roots - lambda_m < 0].max()
+        if len(roots[roots - lambda_m > 0]) == 0:
+            high = np.nan
+        else:
+            high = roots[roots - lambda_m > 0].min()
+        results.append(high - low)
+
+    fwhm = results[0]
+    e_fwhm = np.mean(np.abs([results[1] - fwhm, results[1] - fwhm]))
+    if np.isnan(fwhm) or np.isnan(e_fwhm):
+        fwhm, e_fwhm = np.nan, np.nan
+    return fwhm, e_fwhm
