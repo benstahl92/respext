@@ -31,9 +31,9 @@ def setup_plot(title = None, xlabel = 'Rest Wavelength (\u212B)', ylabel = 'Norm
     if title is not None:
         ax.set_title(title, size = 20)
     if xlabel is not None:
-        ax.set_xlabel(xlabel, size=14)
+        ax.set_xlabel(xlabel, size=12)
     if ylabel is not None:
-        ax.set_ylabel(ylabel, size=14)
+        ax.set_ylabel(ylabel, size=12)
     return fig, ax
 
 def plot_spec(ax, wave, flux, spec_color = 'black', spec_alpha = 1):
@@ -60,38 +60,48 @@ def plot_continuum(ax, cont_points, cp_color = 'black', cl_color = 'blue', cl_al
             ax.scatter(cont_points.loc[feature, ['wav1', 'wav2']], cont_points.loc[feature, ['flux1', 'flux2']],
                        color = cp_color, s = 80)
 
-def plot_lines(ax, absorptions, line_color = 'black', show_line_labels = True):
+def plot_lines(ax, absorptions, line_color = 'black', show_line_labels = True, emission = False):
     '''plot absorption lines'''
 
     for feature in absorptions.index:
         # if absorption measured, label it
         if absorptions.loc[feature, ['wava', 'fluxa', 'cont']].notnull().all():
-            # absorption line below continuum
-            ax.plot([absorptions.loc[feature, 'wava']] * 2,
-                    [absorptions.loc[feature, 'fluxa'], absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])[0]],
-                    color = line_color)
+            if not emission:
+                # absorption line below continuum
+                ax.plot([absorptions.loc[feature, 'wava']] * 2,
+                        [absorptions.loc[feature, 'fluxa'], absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])[0]],
+                        color = line_color)
 
-            # points from which absorption was measured
-            ax.scatter([absorptions.loc[feature, 'wava']] * 2,
-                       [absorptions.loc[feature, 'fluxa'], absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])[0]],
-                       color = line_color, s = 40)
+                # points from which absorption was measured
+                ax.scatter([absorptions.loc[feature, 'wava']] * 2,
+                           [absorptions.loc[feature, 'fluxa'], absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])[0]],
+                           color = line_color, s = 40)
 
-            # absorption line above continuum
-            ax.plot([absorptions.loc[feature, 'wava']] * 2,
-                    [absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])[0], 1.1],
-                    color = line_color, ls = '--')
+                # absorption line above continuum
+                ax.plot([absorptions.loc[feature, 'wava']] * 2,
+                        [absorptions.loc[feature, 'cont'](absorptions.loc[feature, 'wava'])[0], 1.4],
+                        color = line_color, ls = '--')
+            else:
+                # emission peak
+                ax.scatter([absorptions.loc[feature, 'wava']], [absorptions.loc[feature, 'fluxa']], color = line_color, s = 40)
+
+                # line above emission peak
+                ax.plot([absorptions.loc[feature, 'wava']] * 2,
+                        [absorptions.loc[feature, 'fluxa'], 1.4],
+                        color = line_color, ls = '--')
+
             if show_line_labels:
-                ax.text(absorptions.loc[feature, 'wava'], 1.1, feature, rotation = 'vertical',
+                ax.text(absorptions.loc[feature, 'wava'], 1.4, feature, rotation = 'vertical',
                         horizontalalignment = 'right', verticalalignment = 'top')
 
         # if absorption not measured, still label using center or derived continuum points
         elif show_line_labels and absorptions.loc[feature, ['wav1', 'wav2']].notnull().all():
             wav_tmp = absorptions.loc[feature, ['wav1', 'wav2']].mean()
 
-            ax.plot([wav_tmp] * 2, [absorptions.loc[feature, 'cont'](wav_tmp)[0], 1.1],
+            ax.plot([wav_tmp] * 2, [absorptions.loc[feature, 'cont'](wav_tmp)[0], 1.4],
                     color = line_color, ls = '--')
 
-            ax.text(wav_tmp, 1.1, feature, rotation = 'vertical',
+            ax.text(wav_tmp, 1.4, feature, rotation = 'vertical',
                     horizontalalignment = 'right', verticalalignment = 'top')
 
 def _dc_onpick(event, cont_points, wave, flux, ax, fig):

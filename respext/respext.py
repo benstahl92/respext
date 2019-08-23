@@ -66,10 +66,14 @@ class SpExtractor:
         self.signal_window_angstroms = 100
 
         # select appropriate set of spectral lines
-        if self.sn_type not in ['Ia', 'Ib', 'Ic']:
+        if self.sn_type not in ['Ia', 'Ia_NEB', 'Ib', 'Ic']:
             warnings.warn('{} is not a supported type, defaulting to Ia'.format(self.sn_type))
             self.sn_type = 'Ia'
         self.lines = LINES[self.sn_type].copy()
+
+        self.emission = False
+        if 'neb' in self.sn_type.lower():
+            self.emission = True
 
         # load and prepare spectrum
         self._wave, self._flux, self._eflux = utils.load_spectrum(self.spec_file, scale = spec_flux_scale)
@@ -201,25 +205,31 @@ class SpExtractor:
                                                                        self.continuum.loc[feature, ['flux1', 'flux2']].values,
                                                                        self.continuum.loc[feature, ['e_flux1', 'e_flux2']].values)
 
-    def _get_feature_min(self, lambda_0, x_values, y_values, ey_values, feature):
+    def _get_feature_min(self, x_values, y_values, ey_values, feature):
         '''compute location and flux of feature minimum'''
 
         # find deepest absorption
         min_pos = y_values.argmin()
-        if (min_pos < 5) or (min_pos > y_values.shape[0] - 5):
+        if ((min_pos < 5) or (min_pos > y_values.shape[0] - 5)) and (not self.emission):
             return np.nan, np.nan, np.nan, np.nan
 
         # interpolate the feature with a Cubic Spline and use it to derive the absorption minimum
         cs = CubicSpline(x_values, y_values, extrapolate = False)
         extrema = cs.derivative().roots()
-        lambda_m = extrema[np.argmin(cs(extrema))]
+        if self.emission:
+            lambda_m = extrema[np.argmax(cs(extrema))]
+        else:
+            lambda_m = extrema[np.argmin(cs(extrema))]
         flux_m = cs(lambda_m)
 
         # rough calculation of flux minimum uncertainty
         flux_m_err = np.median(ey_values)
 
         # compute wavelength error has std of all wavelengths corresponding to fluxes within noise from minimum if not overridden
-        lambda_m_err = np.std(x_values[y_values < (flux_m + flux_m_err)])
+        if self.emission:
+            lambda_m_err = np.std(x_values[y_values > (flux_m - flux_m_err)])
+        else:
+            lambda_m_err = np.std(x_values[y_values < (flux_m + flux_m_err)])
 
         # optionally override lambda uncertainty with a specified value
         if (self.lambda_m_err != 'measure') and ((type(self.lambda_m_err) == type(1)) or (type(self.lambda_m_err) == type(1.1))):
@@ -236,8 +246,7 @@ class SpExtractor:
         selection = (self.wave > self.lines.loc[feature, 'low_1'] - 250) & (self.wave < self.lines.loc[feature, 'high_2'] + 250)
         wav1, flux1, wav2, flux2 = utils.define_continuum(self.wave[selection], self.sflux[selection], self.lines.loc[feature])
         selection = (self.wave > wav1) & (self.wave < wav2)
-        self._min_data = self._get_feature_min(self.lines.loc[feature, 'rest_wavelength'], self.wave[selection],
-                                               self.sflux[selection], self.nflux[selection], feature)
+        self._min_data = self._get_feature_min(self.wave[selection], self.sflux[selection], self.nflux[selection], feature)
         self.skip_features.append(feature)
 
     def _measure_feature(self, feature):
@@ -252,20 +261,22 @@ class SpExtractor:
                                  index = ['Fb', 'e_Fb', 'Fr', 'e_Fr', 'pEW', 'e_pEW', 'vel', 'e_vel', 'abs', 'e_abs', 'FWHM', 'e_FWHM'])
 
         # compute pEW
-        if self.pEW_measure_from == 'model':
-            tmp_flux, tmp_err = self.sflux, self.nflux
+        if not self.emission:
+            if self.pEW_measure_from == 'model':
+                tmp_flux, tmp_err = self.sflux, self.nflux
+            else:
+                tmp_flux, tmp_err = self.flux, self.eflux
+            pew_results, pew_err_results = pEW(self.wave, tmp_flux, self.continuum.loc[feature, 'cont'],
+                                               np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
+                                                         self.continuum.loc[feature, ['flux1', 'flux2']]]),
+                                               err_method = self.pEW_err_method, eflux = tmp_err)
         else:
-            tmp_flux, tmp_err = self.flux, self.eflux
-        pew_results, pew_err_results = pEW(self.wave, tmp_flux, self.continuum.loc[feature, 'cont'],
-                                           np.array([self.continuum.loc[feature, ['wav1', 'wav2']],
-                                                     self.continuum.loc[feature, ['flux1', 'flux2']]]),
-                                           err_method = self.pEW_err_method, eflux = tmp_err)
+            pew_results, pew_err_results = np.nan, np.nan
 
         # get feature minimum
         if feature not in self.skip_features:
             selection = (self.wave > self.continuum.loc[feature, 'wav1']) & (self.wave < self.continuum.loc[feature, 'wav2'])
-            lambda_m, lambda_m_err, flux_m, flux_m_err = self._get_feature_min(self.lines.loc[feature, 'rest_wavelength'],
-                                                                               self.wave[selection], self.sflux[selection], 
+            lambda_m, lambda_m_err, flux_m, flux_m_err = self._get_feature_min(self.wave[selection], self.sflux[selection],
                                                                                self.nflux[selection], feature)
         elif hasattr(self, '_min_data'):
             lambda_m, lambda_m_err, flux_m, flux_m_err = self._min_data
@@ -289,6 +300,8 @@ class SpExtractor:
                                  lambda_m, flux_m, self.continuum.loc[feature, 'cont'])
             if (self.continuum.loc[feature, 'wav1'] > lambda_m - fwhm / 2) or (self.continuum.loc[feature, 'wav2'] < lambda_m + fwhm / 2):
                 fwhm, fwhm_err = np.nan, np.nan
+        if self.emission:
+            a, a_err = np.nan, np.nan
 
         return pd.Series([self.continuum.loc[feature, 'flux1'] * self.flux_norm_factor / 1e-15, 
                           self.continuum.loc[feature, 'e_flux1'] * self.flux_norm_factor / 1e-15,
@@ -300,7 +313,7 @@ class SpExtractor:
     def process(self, features = 'all'):
         '''do full processing of spectrum by measuring each feature'''
 
-        if type(features) == type('this is a string'):
+        if (type(features) == type('this is a string')) or (not hasattr(self, 'results')):
             self.results = self.lines.apply(lambda feature: self._measure_feature(feature.name), axis = 1, result_type = 'expand')
         # otherwise ind should be a list of features to do, but not checking so use wisely!
         else:
@@ -325,8 +338,7 @@ class SpExtractor:
         if model:
             utils.plot_spec(self.plotter[1], self.wave, self.sflux, spec_color = 'red')
         if lines:
-            utils.plot_lines(self.plotter[1], self.continuum,
-                             show_line_labels = show_line_labels)
+            utils.plot_lines(self.plotter[1], self.continuum, show_line_labels = show_line_labels, emission = self.emission)
         plt.tight_layout()
         if save is not False:
             self.plotter[0].savefig(save)

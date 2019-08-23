@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+
+# standard imports
+import matplotlib
+matplotlib.use('TkAgg')
+
+# custom imports
+import respext
+
+# -----------------------------------------------------------------------------------
+# nebularespext --- interactively (re)process a nebular SN Ia spectrum with respext
+
+# -----------------------------------------------------------------------------------
+
+# main function
+
+def main(infile, features = 'all', z = None, ebv = None, save = True, plot = True):
+    '''given respext save file, reprocess after interactively selecting continuum'''
+
+    # instantiate
+    if '.sav' in infile:
+        s = respext.SpExtractor(save_file = infile)
+    else:
+        s = respext.SpExtractor(spec_file = infile, z = z, ebv = ebv,
+                                lambda_m_err = 2, sn_type = 'Ia_NEB')
+
+    # parse features to reprocess
+    if features == 'all':
+        features = s.lines.index
+    elif ',' in features:
+        features = s.lines.index[[int(feat.strip()) for feat in features.split(',')]]
+    else:
+        try:
+            features = [s.lines.index[int(features)]]
+        except ValueError:
+            print('failed to parse feature selection, please select manually')
+            features = None
+
+    if hasattr(s, 'results'):
+        print('initial results')
+        s.report()
+
+    s.pick_continuum(features = features)
+
+    s.process(features = features)
+
+    # correct for for respext convention of positive blueshifted velocities
+    s.results['vel'] = s.results['vel'] * -1
+
+    print('\nnew results')
+    s.report()
+
+    print('\n')
+    if save:
+        print('state saved: {}'.format(s.save_file))
+        s.save()
+    if plot:
+        print('plot created: {}'.format(s.save_file.replace('.sav', '.png')))
+        if hasattr(s, 'plot_title'):
+            s.plot(title = s.plot_title, save = s.save_file.replace('.sav', '.png'), figsize = (12,6))
+        else:
+            s.plot(save = s.save_file.replace('.sav', '.png'), figsize = (12,6))
+
+# -----------------------------------------------------------------------------------
+# script
+
+if __name__ == '__main__':
+
+    # collect arguments
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('infile', type = str, help = 'respext savefile or raw spectrum file')
+    parser.add_argument('-f', '--features', dest = 'features', type = str, default = 'all',
+                        help = 'comma separated list of integers for features')
+    parser.add_argument('-z', '--redshift', dest = 'z', type = float, default = None,
+                        help = 'redshift of target')
+    parser.add_argument('-r', '--ebv', dest = 'ebv', type = float, default = None,
+                        help = 'E(B-V) due to Galactic foreground')
+    parser.add_argument('-ns', '--no-save', dest = 'save', action = 'store_const',
+                        const = False, default = True, help = 'do not save results')
+    parser.add_argument('-np', '--no-plot', dest = 'plot', action = 'store_const',
+                        const = False, default = True, help = 'do not generate plot')
+    args = parser.parse_args()
+
+    # execute
+    main(args.infile, features = args.features, z = args.z, ebv = args.ebv, save = args.save, plot = args.plot)

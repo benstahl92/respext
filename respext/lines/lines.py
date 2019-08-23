@@ -22,6 +22,12 @@ LINES_Ia = pd.DataFrame(index = ['Ca II H&K', 'Si II 4000', 'Mg II', 'Fe II', 'S
                                 (7773.37, 6800, 7450, 7600, 8000, -2e-18, 0),
                                 (8578.75, 7500, 8100, 8200, 8900, 0, 0)])
 
+LINES_NEB_Ia = pd.DataFrame(index = ['[Fe III] 4701', '[Fe II] 7155', '[Ni II] 7378'],
+                            columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2', 'blue_deriv', 'red_deriv'],
+                            data = [(4701, 4300, 4550, 4740, 4900, 0, 0),
+                                    (7155, 6700, 7120, 7180, 7350, 0, 0),
+                                    (7378, 7100, 7300, 7400, 7700, 0, 0)])
+
 LINES_Ib = pd.DataFrame(index = ['Fe II', 'He I'],
                         columns = ['rest_wavelength', 'low_1', 'high_1', 'low_2', 'high_2', 'blue_deriv', 'red_deriv'],
                         data = [(5169, 4950, 5050, 5150, 5250, 0, 0),
@@ -32,7 +38,7 @@ LINES_Ic = pd.DataFrame(index = ['Fe II', 'O I'],
                         data = [(5169, 4950, 5050, 5150, 5250, 0, 0),
                                 (7773, 7250, 7350, 7750, 7950, 0, 0)])
 
-LINES = dict(Ia=LINES_Ia, Ib=LINES_Ib, Ic=LINES_Ic)
+LINES = dict(Ia=LINES_Ia, Ia_NEB=LINES_NEB_Ia, Ib=LINES_Ib, Ic=LINES_Ic)
 
 def get_speed(lambda_m, lambda_m_err, lambda_rest, c = 299.792458):
     '''
