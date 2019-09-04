@@ -19,6 +19,9 @@ def main(save_file, features = 'all', pick_minimum = False, save = True, plot = 
     # load from save
     s = respext.SpExtractor(save_file = save_file)
 
+    # hack to have compatibility
+    s.emission = False
+
     # parse features to reprocess
     if features == 'all':
         features = s.results.index
